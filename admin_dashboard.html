@@ -1,0 +1,2669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ADAM · Anand Hospital Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#080b12;--bg2:#0f1420;--bg3:#161c2e;--bg4:#1c2340;--bg5:#222a4a;
+  --border:#ffffff0d;--border2:#ffffff18;--border3:#ffffff28;
+  --accent:#4f8ef7;--accent2:#7b5cf5;--accent3:#38d9b4;
+  --warn:#f59e4f;--danger:#f75f5f;--info:#60c4ff;
+  --text:#dde4f5;--text2:#dde4f5;--text3:#dde4f5;
+  --card-r:12px;--sidebar-w:230px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:3px;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--bg2);border-right:1px solid var(--border2);
+  display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:200;}
+.logo-wrap{padding:24px 20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;}
+.logo-mark{width:36px;height:36px;border-radius:9px;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+  display:grid;place-items:center;font-family:'DM Serif Display',serif;font-size:17px;color:#fff;flex-shrink:0;
+  box-shadow:0 0 20px rgba(79,142,247,.35);}
+.logo-text{font-family:'DM Serif Display',serif;font-size:17px;color:var(--text);letter-spacing:.3px;}
+.logo-sub{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:var(--text);margin-top:1px;}
+.nav{padding:14px 10px;flex:1;overflow-y:auto;}
+.nav-group-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);
+  padding:14px 10px 5px;display:block;}
+.nav a{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;
+  color:var(--text2);text-decoration:none;font-size:12.5px;font-weight:400;
+  transition:all .15s;cursor:pointer;margin-bottom:1px;position:relative;}
+.nav a:hover{background:var(--bg3);color:var(--text);}
+.nav a.active{background:linear-gradient(135deg,rgba(79,142,247,.14),rgba(123,92,245,.09));
+  color:var(--accent);border:1px solid rgba(79,142,247,.18);}
+.nav a svg{width:15px;height:15px;flex-shrink:0;opacity:.6;}
+.nav a.active svg,.nav a:hover svg{opacity:1;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;
+  font-weight:600;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center;}
+.nav-badge.red{background:var(--danger);}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:9px;}
+.user-av{width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent2),var(--accent));
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:500;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);}
+.logout-link{font-size:11px;color:var(--text3);cursor:pointer;margin-top:5px;display:inline-block;transition:color .15s;}
+.logout-link:hover{color:var(--danger);}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{padding:14px 28px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.page-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--text);}
+.page-title em{color:var(--accent);font-style:italic;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.live-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;
+  border-radius:20px;font-size:11px;font-weight:500;
+  background:rgba(56,217,180,.1);color:var(--accent3);border:1px solid rgba(56,217,180,.18);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.update-notice{font-size:11px;color:var(--accent3);background:rgba(56,217,180,.08);
+  border:1px solid rgba(56,217,180,.15);padding:5px 12px;border-radius:20px;
+  display:none;animation:fadeIn .3s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.icon-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--text2);font-size:12px;cursor:pointer;
+  font-family:'Sora',sans-serif;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.icon-btn:hover{background:var(--bg4);color:var(--text);border-color:var(--border3);}
+.icon-btn svg{width:13px;height:13px;}
+
+.content{padding:24px 28px;flex:1;}
+.section{display:none;animation:fadeIn .2s;}
+.section.active{display:block;}
+
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);
+  padding:18px 20px;position:relative;overflow:hidden;transition:border-color .2s,transform .15s;}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.blue::after{background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.stat-card.green::after{background:linear-gradient(90deg,var(--accent3),#22c99a);}
+.stat-card.amber::after{background:linear-gradient(90deg,var(--warn),#d97c20);}
+.stat-card.purple::after{background:linear-gradient(90deg,var(--accent2),#a855f7);}
+.stat-card.red::after{background:linear-gradient(90deg,var(--danger),#c43030);}
+.stat-card.cyan::after{background:linear-gradient(90deg,var(--info),#3b82f6);}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px;}
+.stat-num{font-family:'DM Serif Display',serif;font-size:30px;color:var(--text);line-height:1;}
+.stat-num.sm{font-size:18px;margin-top:4px;}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:5px;}
+.stat-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:26px;opacity:1;}
+.stat-trend{font-size:10px;color:var(--accent3);margin-top:4px;display:flex;align-items:center;gap:3px;}
+
+/* ── CARD ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);overflow:hidden;margin-bottom:16px;}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.card-title{font-size:13px;font-weight:600;color:var(--text);}
+.card-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.card-body{padding:20px;}
+.card-body.np{padding:0;}
+
+/* ── TWO COLUMN ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);
+  padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.015);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.025);}
+tbody td{padding:11px 16px;font-size:12.5px;color:var(--text2);white-space:nowrap;}
+td.bold{color:var(--text);font-weight:500;}
+td.mono{font-family:'DM Mono',monospace;font-size:11.5px;}
+td.dim{color:var(--text3);font-family:'DM Mono',monospace;font-size:11px;}
+
+/* ── PILLS ── */
+.pill{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;
+  border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap;}
+.pill.neurology{background:rgba(79,142,247,.12);color:var(--accent);}
+.pill.general{background:rgba(56,217,180,.12);color:var(--accent3);}
+.pill.gastro{background:rgba(245,158,79,.12);color:var(--warn);}
+.pill.dermatology{background:rgba(123,92,245,.12);color:var(--accent2);}
+.pill.booked,.pill.confirmed{background:rgba(56,217,180,.12);color:var(--accent3);}
+.pill.cancelled{background:rgba(247,95,95,.12);color:var(--danger);}
+.pill.incomplete{background:rgba(245,158,79,.12);color:var(--warn);}
+.pill.dropped{background:rgba(96,196,255,.12);color:var(--info);}
+.pill.en{background:rgba(79,142,247,.12);color:var(--accent);}
+.pill.hi{background:rgba(245,158,79,.12);color:var(--warn);}
+
+/* ── BAR CHART ── */
+.bar-chart{display:flex;flex-direction:column;gap:9px;}
+.bar-row{display:flex;align-items:center;gap:10px;}
+.bar-lbl{width:88px;font-size:11.5px;color:var(--text2);white-space:nowrap;
+  text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:7px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width 1.1s cubic-bezier(.4,0,.2,1);}
+.bar-val{width:34px;font-size:10.5px;color:var(--text3);font-family:'DM Mono',monospace;
+  text-align:right;flex-shrink:0;}
+
+/* ── DONUT ── */
+.donut-wrap{display:flex;align-items:center;gap:24px;justify-content:center;padding:4px 0;}
+.donut-legend{display:flex;flex-direction:column;gap:8px;}
+.leg-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2);}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* ── TIMELINE ── */
+.timeline-wrap{padding:4px 0 0;}
+.timeline-bars{display:flex;align-items:flex-end;gap:5px;height:70px;}
+.tl-bar{flex:1;border-radius:3px 3px 0 0;min-height:4px;cursor:pointer;position:relative;transition:opacity .2s;}
+.tl-bar:hover{opacity:.8;}
+.tl-bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100%+6px);
+  left:50%;transform:translateX(-50%);background:var(--bg5);border:1px solid var(--border2);
+  padding:4px 8px;border-radius:6px;font-size:10px;white-space:nowrap;color:var(--text);
+  pointer-events:none;z-index:9;}
+.tl-labels{display:flex;gap:5px;padding:5px 0 0;}
+.tl-labels span{flex:1;font-size:8.5px;color:var(--text3);text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── FILTERS ── */
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;}
+.search-wrap{display:flex;align-items:center;gap:7px;background:var(--bg3);
+  border:1px solid var(--border2);border-radius:8px;padding:8px 12px;flex:1;min-width:180px;
+  transition:border-color .15s;}
+.search-wrap:focus-within{border-color:rgba(79,142,247,.4);}
+.search-wrap svg{width:13px;height:13px;color:var(--text3);flex-shrink:0;}
+.search-wrap input{background:none;border:none;outline:none;color:var(--text);
+  font-size:12.5px;font-family:'Sora',sans-serif;width:100%;}
+.search-wrap input::placeholder{color:var(--text3);}
+.f-select{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+  padding:8px 12px;color:var(--text2);font-size:12px;font-family:'Sora',sans-serif;
+  outline:none;cursor:pointer;transition:border-color .15s;}
+.f-select:focus{border-color:rgba(79,142,247,.4);}
+.btn{padding:8px 16px;border-radius:8px;border:none;font-size:12px;
+  font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;transition:all .15s;
+  display:inline-flex;align-items:center;gap:6px;}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+.btn.primary:hover{opacity:.88;}
+.btn.ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border2);}
+.btn.ghost:hover{background:var(--bg4);color:var(--text);}
+.btn.danger{background:rgba(247,95,95,.12);color:var(--danger);border:1px solid rgba(247,95,95,.18);}
+.btn.danger:hover{background:rgba(247,95,95,.22);}
+.btn svg{width:12px;height:12px;}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  background-image:radial-gradient(ellipse at 30% 40%,rgba(79,142,247,.06) 0%,transparent 60%),
+                   radial-gradient(ellipse at 70% 60%,rgba(123,92,245,.06) 0%,transparent 60%);}
+.login-card{width:360px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:18px;padding:36px 32px;position:relative;overflow:hidden;}
+.login-card::before{content:'';position:absolute;top:-80px;right:-80px;width:180px;height:180px;
+  border-radius:50%;background:radial-gradient(circle,rgba(79,142,247,.12),transparent 70%);}
+.login-logo-wrap{text-align:center;margin-bottom:22px;}
+.login-logo-wrap img{width:100px;height:auto;border-radius:14px;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);}
+.login-title{font-family:'DM Serif Display',serif;font-size:24px;color:var(--text);margin-bottom:3px;}
+.login-sub{font-size:11px;color:var(--text3);margin-bottom:24px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:10px;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--text3);margin-bottom:6px;}
+.field input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+  padding:10px 13px;color:var(--text);font-size:13px;font-family:'Sora',sans-serif;
+  outline:none;transition:border-color .15s;}
+.field input:focus{border-color:rgba(79,142,247,.5);}
+.login-btn{width:100%;padding:11px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+  font-size:13px;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;
+  margin-top:6px;transition:opacity .15s;}
+.login-btn:hover{opacity:.88;}
+.login-err{font-size:11.5px;color:var(--danger);margin-top:10px;display:none;
+  padding:8px 12px;background:rgba(247,95,95,.07);border-radius:7px;
+  border:1px solid rgba(247,95,95,.14);}
+
+/* ── TRANSCRIPT VIEWER ── */
+.transcript-list{display:flex;flex-direction:column;gap:0;}
+.tx-item{border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background .12s;padding:14px 20px;}
+.tx-item:last-child{border-bottom:none;}
+.tx-item:hover{background:rgba(255,255,255,.025);}
+.tx-item.open{background:rgba(79,142,247,.06);}
+.tx-head{display:flex;align-items:center;gap:10px;}
+.tx-sid{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text3);
+  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tx-date{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text3);white-space:nowrap;}
+.tx-info{display:flex;align-items:center;gap:8px;margin-top:5px;}
+.tx-body{display:none;padding-top:14px;}
+.tx-body.open{display:block;}
+.tx-turns{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;}
+.turn{display:flex;gap:10px;align-items:flex-start;}
+.turn-who{font-size:10px;font-weight:600;min-width:44px;padding-top:2px;flex-shrink:0;letter-spacing:.5px;}
+.turn-who.adam{color:var(--accent);}
+.turn-who.user{color:var(--accent3);}
+.turn-text{font-size:12px;color:var(--text2);background:var(--bg3);padding:7px 11px;
+  border-radius:8px;flex:1;line-height:1.6;}
+.turn.adam .turn-text{border-left:2px solid rgba(79,142,247,.35);}
+.turn.user .turn-text{border-left:2px solid rgba(56,217,180,.35);}
+.turn-text.silence{color:var(--text3);font-style:italic;}
+
+/* ── MODEL ── */
+.model-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+.m-stat{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:15px 16px;}
+.m-label{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.m-val{font-family:'DM Mono',monospace;font-size:18px;color:var(--accent);font-weight:500;}
+.m-sub{font-size:9.5px;color:var(--text3);margin-top:2px;}
+.pipeline{display:flex;align-items:center;}
+.pip{flex:1;text-align:center;padding:10px 4px;border:1px solid var(--border);
+  font-size:10px;color:var(--text3);position:relative;}
+.pip:first-child{border-radius:8px 0 0 8px;}
+.pip:last-child{border-radius:0 8px 8px 0;}
+.pip.done{background:rgba(56,217,180,.08);border-color:rgba(56,217,180,.2);color:var(--accent3);}
+.pip-name{font-weight:600;font-size:11px;}
+.pip-sub{font-size:9px;opacity:.55;margin-top:1px;}
+
+/* ── SETTINGS ── */
+.set-section{margin-bottom:22px;}
+.set-section h3{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:1.2px;
+  text-transform:uppercase;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;
+  border-bottom:1px solid var(--border);}
+.set-row:last-child{border-bottom:none;}
+.set-lbl{font-size:13px;color:var(--text);}
+.set-desc{font-size:10.5px;color:var(--text3);margin-top:1px;}
+.toggle{width:34px;height:19px;border-radius:10px;background:var(--bg4);
+  border:1px solid var(--border2);cursor:pointer;position:relative;transition:background .18s;flex-shrink:0;}
+.toggle.on{background:var(--accent);border-color:var(--accent);}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;
+  border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.toggle.on::after{left:17px;}
+.inp{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;
+  padding:7px 10px;color:var(--text);font-size:12px;font-family:'DM Mono',monospace;
+  outline:none;transition:border-color .15s;}
+.inp:focus{border-color:rgba(79,142,247,.4);}
+.save-btn{padding:9px 20px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+  font-size:12px;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;
+  margin-top:14px;transition:opacity .15s;}
+.save-btn:hover{opacity:.88;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:48px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:12px;opacity:.4;}
+.empty-text{font-size:13px;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg4);border:1px solid var(--border2);
+  color:var(--text);padding:12px 18px;border-radius:10px;font-size:12.5px;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:9000;display:none;
+  animation:slideUp .25s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── ACTION BUTTONS in table ── */
+.act-btn{padding:4px 9px;border-radius:6px;border:none;font-size:10.5px;
+  font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;transition:all .15s;
+  display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.act-btn.cancel{background:rgba(245,158,79,.1);color:var(--warn);border:1px solid rgba(245,158,79,.2);}
+.act-btn.cancel:hover{background:rgba(245,158,79,.2);}
+.act-btn.delete{background:rgba(247,95,95,.1);color:var(--danger);border:1px solid rgba(247,95,95,.2);}
+.act-btn.delete:hover{background:rgba(247,95,95,.22);}
+.act-btn.reschedule{background:rgba(79,142,247,.1);color:var(--accent);border:1px solid rgba(79,142,247,.2);}
+.act-btn.reschedule:hover{background:rgba(79,142,247,.22);}
+.act-btn:disabled{opacity:.4;cursor:not-allowed;}
+td.actions{display:flex;gap:6px;align-items:center;padding:8px 16px;}
+.status-pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;}
+.status-pill.active{background:rgba(56,217,180,.1);color:var(--accent3);}
+.status-pill.cancelled{background:rgba(247,95,95,.1);color:var(--danger);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8000;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;animation:fadeIn .2s;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;
+  width:480px;max-width:94vw;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6);}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--text);}
+.modal-close{width:30px;height:30px;border-radius:7px;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--text2);cursor:pointer;font-size:16px;
+  display:grid;place-items:center;transition:all .15s;}
+.modal-close:hover{background:var(--bg4);color:var(--danger);}
+.modal-body{padding:24px;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.m-field{display:flex;flex-direction:column;gap:6px;}
+.m-field.full{grid-column:1/-1;}
+.m-label2{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);}
+.m-input{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+  padding:9px 12px;color:var(--text);font-size:12.5px;font-family:'Sora',sans-serif;
+  outline:none;transition:border-color .15s;width:100%;}
+.m-input:focus{border-color:rgba(79,142,247,.45);}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── CONFIRM DIALOG ── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.confirm-overlay.open{display:flex;animation:fadeIn .15s;}
+.confirm-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+  width:360px;padding:28px 28px 22px;box-shadow:0 24px 64px rgba(0,0,0,.6);}
+.confirm-icon{font-size:32px;margin-bottom:12px;}
+.confirm-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.confirm-msg{font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:20px;}
+.confirm-btns{display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── CHECKBOXES ── */
+.row-cb{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+th.cb-col,td.cb-col{width:38px;padding:0 8px;text-align:center;}
+th.cb-col label{display:flex;align-items:center;justify-content:center;cursor:pointer;}
+tbody tr.row-selected{background:rgba(79,142,247,.09)!important;
+  outline:1px solid rgba(79,142,247,.22);outline-offset:-1px;}
+
+/* ── BULK ACTION BAR ── */
+#bulk-bar{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--bg3);border:1px solid var(--border3);
+  border-radius:14px;padding:11px 18px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 12px 40px rgba(0,0,0,.55);z-index:8500;
+  transition:transform .25s cubic-bezier(.4,0,.2,1),opacity .25s;
+  opacity:0;pointer-events:none;white-space:nowrap;}
+#bulk-bar.visible{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:all;}
+#bulk-bar-count{font-size:12.5px;font-weight:600;color:var(--text);}
+#bulk-bar-count span{color:var(--accent);}
+.bulk-sep{width:1px;height:20px;background:var(--border2);}
+.bbtn{padding:7px 15px;border-radius:8px;border:none;font-size:12px;
+  font-family:'Sora',sans-serif;font-weight:500;cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;gap:6px;}
+.bbtn.b-cancel{background:rgba(245,158,79,.12);color:var(--warn);border:1px solid rgba(245,158,79,.22);}
+.bbtn.b-cancel:hover{background:rgba(245,158,79,.24);}
+.bbtn.b-delete{background:rgba(247,95,95,.12);color:var(--danger);border:1px solid rgba(247,95,95,.22);}
+.bbtn.b-delete:hover{background:rgba(247,95,95,.24);}
+.bbtn.b-clear{background:transparent;color:var(--text3);border:1px solid var(--border2);}
+.bbtn.b-clear:hover{background:var(--bg4);color:var(--text);}
+
+/* ── ADVANCED ANALYTICS ── */
+.insight-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px;}
+.insight-card{border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;border:1px solid;}
+.insight-card.warning{background:rgba(245,158,79,.07);border-color:rgba(245,158,79,.2);}
+.insight-card.success{background:rgba(56,217,180,.07);border-color:rgba(56,217,180,.2);}
+.insight-card.info{background:rgba(79,142,247,.07);border-color:rgba(79,142,247,.2);}
+.insight-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+.insight-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.insight-body{font-size:11px;color:var(--text3);line-height:1.5;}
+.insight-metric{font-size:18px;font-family:'DM Serif Display',serif;color:var(--text);margin-left:auto;flex-shrink:0;padding-left:12px;}
+
+.funnel-wrap{padding:8px 0;}
+.funnel-step{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.funnel-label{font-size:11px;color:var(--text2);width:100px;flex-shrink:0;text-align:right;}
+.funnel-bar-wrap{flex:1;height:28px;background:var(--bg3);border-radius:6px;overflow:hidden;position:relative;}
+.funnel-bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;
+  font-size:11px;font-weight:600;color:#fff;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.funnel-val{font-size:11px;color:var(--text3);width:36px;text-align:right;font-family:'DM Mono',monospace;flex-shrink:0;}
+
+.forecast-wrap{display:flex;align-items:flex-end;gap:4px;height:80px;padding:0 4px;}
+.fc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.fc-bar{width:100%;border-radius:3px 3px 0 0;min-height:4px;position:relative;}
+.fc-bar.actual{background:linear-gradient(to top,var(--accent),rgba(79,142,247,.5));}
+.fc-bar.predicted{background:linear-gradient(to top,rgba(123,92,245,.5),rgba(123,92,245,.2));
+  border:1px dashed rgba(123,92,245,.5);border-bottom:none;}
+.fc-label{font-size:8px;color:var(--text3);text-align:center;white-space:nowrap;}
+.fc-val{font-size:8.5px;color:var(--text2);font-family:'DM Mono',monospace;}
+
+.conv-ring{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+.conv-num{font-family:'DM Serif Display',serif;font-size:38px;line-height:1;}
+.conv-sub{font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;}
+
+.retention-bars{display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:8px;}
+.ret-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ret-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:height .8s;}
+.ret-lbl{font-size:9px;color:var(--text3);}
+.ret-val{font-size:9.5px;color:var(--text2);font-family:'DM Mono',monospace;}
+
+.turns-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+.turns-outcome{min-width:80px;font-size:11px;}
+.turns-bar-wrap{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.turns-bar{height:100%;border-radius:4px;transition:width .8s;}
+.turns-val{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);min-width:36px;text-align:right;}
+
+.efficiency-score{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;}
+.eff-ring{position:relative;width:54px;height:54px;}
+.eff-ring svg{transform:rotate(-90deg);}
+.eff-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:var(--text);}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <img src="/static/anand.hospital.png" alt="Anand Hospital"onerror="this.style.display='none'"/>
+    </div>
+    <div class="login-title">Admin Portal</div>
+    <div class="login-sub">Anand Hospital </div>
+    <div class="field"><label>Username</label>
+      <input type="text" id="lu" autocomplete="off" placeholder=""/></div>
+    <div class="field"><label>Password</label>
+      <input type="password" id="lp" autocomplete="off" placeholder=""/></div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="lerr">Invalid credentials.</div>
+  </div>
+</div>
+
+<!-- ══ SIDEBAR ════════════════════════════════════════════════════════ -->
+<div class="sidebar">
+  <div class="logo-wrap">
+    <div class="login-logo-wrap">
+      <img src="/static/anand.hospital.png" alt="Anand Hospital" onerror="this.style.display='none'"/>
+    </div>
+    <div><div class="logo-text">Hospital</div><div class="logo-sub">Admin Panel</div></div>
+  </div>
+  <nav class="nav">
+    <span class="nav-group-label">Overview</span>
+    <a class="active" onclick="go('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>Dashboard
+    </a>
+    <span class="nav-group-label">Data</span>
+    <a onclick="go('appointments',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+      </svg>Appointments
+      <span class="nav-badge" id="nav-count">—</span>
+    </a>
+    <a onclick="go('analytics',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>Analytics
+    </a>
+    <a onclick="go('calls',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.7A2 2 0 012 .82h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+      </svg>Call Logs
+      <span class="nav-badge red" id="nav-calls">—</span>
+    </a>
+    <span class="nav-group-label">System</span>
+    <a onclick="go('model',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+      </svg>Model Info
+    </a>
+    <a onclick="go('settings',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>Settings
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      
+      <div><div class="user-name"></div><div class="user-role"></div></div>
+    </div>
+    <span class="logout-link" onclick="logout()">Sign out →</span>
+  </div>
+</div>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════════════ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="page-title">Anand Hospital · <em>Adam AI Voice Agent</em></div>
+      <div class="update-notice" id="update-notice">⟳ New data available — refreshed</div>
+    </div>
+    <div class="topbar-right">
+      <span class="live-pill"><span class="live-dot"></span>Live</span>
+      <button class="icon-btn" id="refreshBtn" onclick="refreshDashboard()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+        </svg>Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══════════════════════════════════════════════════ -->
+    <div id="sec-dashboard" class="section active">
+
+      <!-- KPI Row -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="stat-card blue">
+          <div class="stat-label">Total Appointments</div>
+          <div class="stat-num" id="s-total">—</div>
+          <div class="stat-sub">All time</div><div class="stat-icon">📅</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Total Calls</div>
+          <div class="stat-num" id="s-calls">—</div>
+          <div class="stat-sub">Via ADAM</div><div class="stat-icon">📞</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">Unique Patients</div>
+          <div class="stat-num" id="s-patients">—</div>
+          <div class="stat-sub">Distinct visitors</div><div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Top Doctor</div>
+          <div class="stat-num sm" id="s-topdoc">—</div>
+          <div class="stat-sub">Most bookings</div><div class="stat-icon">🏆</div>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+        <div class="stat-card green">
+          <div class="stat-label">Calls Booked</div>
+          <div class="stat-num" id="s-booked">—</div>
+          <div class="stat-sub">Successful via ADAM</div><div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">Incomplete Calls</div>
+          <div class="stat-num" id="s-incomplete">—</div>
+          <div class="stat-sub">Dropped + incomplete</div><div class="stat-icon">⚠️</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-label">Avg Turns / Call</div>
+          <div class="stat-num" id="s-turns">—</div>
+          <div class="stat-sub">Conversation depth</div><div class="stat-icon">🗣️</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Avg Bookings / Day</div>
+          <div class="stat-num" id="s-avg">—</div>
+          <div class="stat-sub">Over active days</div><div class="stat-icon">📊</div>
+        </div>
+      </div>
+
+      <!-- AI Insights (live) -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <div><div class="card-title">🤖 Live Insights</div>
+          <div class="card-sub">Auto-generated recommendations from your data</div></div>
+          <button class="icon-btn" onclick="loadInsights(); loadDbInsights();" style="font-size:11px">↻ Refresh</button>
+        </div>
+        <div class="card-body" style="padding:14px 16px">
+          <div class="insight-cards" id="db-insights">
+            <div style="color:var(--text3);font-size:12px;grid-column:1/-1;text-align:center;padding:12px">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking Trend + Dept Donut -->
+      <div class="two-col">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📈 Booking Activity</div>
+          <div class="card-sub">Appointments booked per day</div>
+        </div></div><div class="card-body" style="padding:10px 16px 16px">
+          <div class="timeline-wrap">
+            <div class="timeline-bars" id="db-timeline"></div>
+            <div class="tl-labels" id="db-tl-labels"></div>
+          </div>
+        </div></div>
+
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🏥 Department Mix</div>
+          <div class="card-sub">Appointments by specialty</div>
+        </div></div><div class="card-body">
+          <div class="donut-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110" id="db-donut"></svg>
+            <div class="donut-legend" id="db-legend"></div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Doctor Workload + Time Slots -->
+      <div class="two-col" style="margin-top:16px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">👨‍⚕️ Doctor Workload</div>
+          <div class="card-sub">Appointments per physician</div>
+        </div></div><div class="card-body"><div class="bar-chart" id="db-doctor"></div></div></div>
+
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">⏰ Peak Time Slots</div>
+          <div class="card-sub">Most requested appointment times</div>
+        </div></div><div class="card-body"><div class="bar-chart" id="db-slot"></div></div></div>
+      </div>
+
+      <!-- Call Outcomes + Language Split -->
+      <div class="two-col" style="margin-top:16px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📞 ADAM Call Outcomes</div>
+          <div class="card-sub">Booked vs incomplete vs dropped</div>
+        </div></div><div class="card-body"><div class="bar-chart" id="db-outcomes"></div></div></div>
+
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🌐 Language Split</div>
+          <div class="card-sub">English vs Hindi calls</div>
+        </div></div><div class="card-body">
+          <div class="donut-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110" id="db-lang-donut"></svg>
+            <div class="donut-legend" id="db-lang-legend"></div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Recent Appointments -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><div>
+          <div class="card-title">🕒 Recent Appointments</div>
+          <div class="card-sub">Latest 5 bookings</div>
+        </div>
+        <button class="btn ghost" onclick="go('appointments', document.querySelector('.nav a:nth-child(4)'))" style="font-size:11px">View all →</button>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Patient</th><th>Doctor</th><th>Department</th><th>Date</th><th>Time</th><th>Booked At</th></tr></thead>
+          <tbody id="db-recent"></tbody>
+        </table></div>
+      </div>
+
+    </div>
+
+    <!-- ── ANALYTICS ── -->
+    <div id="sec-analytics" class="section">
+
+      <!-- KPI Row 1 -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+        <div class="stat-card blue"><div class="stat-label">Total Appointments</div>
+          <div class="stat-num" id="an-total">—</div>
+          <div class="stat-sub">All time</div><div class="stat-icon">📅</div></div>
+        <div class="stat-card green"><div class="stat-label">Active</div>
+          <div class="stat-num" id="an-active">—</div>
+          <div class="stat-sub">Confirmed bookings</div><div class="stat-icon">✅</div></div>
+        <div class="stat-card red"><div class="stat-label">Cancelled</div>
+          <div class="stat-num" id="an-cancelled">—</div>
+          <div class="stat-sub" id="an-cancel-rate-sub">—% cancel rate</div><div class="stat-icon">✕</div></div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-top:14px">
+        <div class="stat-card purple"><div class="stat-label">Repeat Patients</div>
+          <div class="stat-num" id="an-repeat">—</div>
+          <div class="stat-sub">2+ visits</div><div class="stat-icon">🔁</div></div>
+        <div class="stat-card amber"><div class="stat-label">Avg Bookings/Day</div>
+          <div class="stat-num" id="an-avgday">—</div>
+          <div class="stat-sub">Over active days</div><div class="stat-icon">📊</div></div>
+        <div class="stat-card cyan"><div class="stat-label">Peak Time Slot</div>
+          <div class="stat-num sm" id="an-peak">—</div>
+          <div class="stat-sub">Most popular</div><div class="stat-icon">⏰</div></div>
+        <div class="stat-card green"><div class="stat-label">Call Conversion</div>
+          <div class="stat-num" id="an-conv-rate">—</div>
+          <div class="stat-sub">Calls → bookings</div><div class="stat-icon">🎯</div></div>
+      </div>
+
+      <!-- AI Insights -->
+      <div class="card" style="margin-top:18px"><div class="card-header"><div>
+        <div class="card-title">🤖 AI Insights & Recommendations</div>
+        <div class="card-sub">Auto-generated from your data</div>
+      </div><button class="icon-btn" onclick="loadInsights()" style="font-size:11px">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:14px 16px">
+        <div class="insight-cards" id="an-insights">
+          <div style="color:var(--text3);font-size:12px;grid-column:1/-1;text-align:center;padding:12px">Loading insights…</div>
+        </div>
+      </div></div>
+
+      <!-- Trend + Forecast -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📈 Daily Booking Trend</div>
+          <div class="card-sub">Appointments booked per day (last 30 days)</div>
+        </div></div><div class="card-body" style="padding:16px 20px">
+          <canvas id="an-trend-canvas" height="140" style="width:100%;display:block"></canvas>
+        </div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🔮 7-Day Forecast</div>
+          <div class="card-sub">Predicted appointments (linear regression)</div>
+        </div></div><div class="card-body" style="padding:16px 20px">
+          <div class="forecast-wrap" id="an-forecast-bars"></div>
+          <div style="display:flex;gap:16px;margin-top:10px;font-size:10px;color:var(--text3)">
+            <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:6px;background:var(--accent);border-radius:2px"></span>Actual</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:10px;height:6px;background:rgba(123,92,245,.4);border-radius:2px;border:1px dashed rgba(123,92,245,.6)"></span>Predicted</span>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Weekly + ADAM Funnel -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📅 Weekly Pattern</div>
+          <div class="card-sub">Booking volume by day of week</div>
+        </div></div><div class="card-body" style="padding:16px 20px">
+          <canvas id="an-weekly-canvas" height="140" style="width:100%;display:block"></canvas>
+        </div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📞 ADAM Call Funnel</div>
+          <div class="card-sub">Call-to-booking conversion pipeline</div>
+        </div></div><div class="card-body">
+          <div class="funnel-wrap" id="an-funnel"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div class="conv-ring">
+              <div class="conv-num" id="an-conv-big" style="color:var(--accent3)">—%</div>
+              <div class="conv-sub">Conversion Rate</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Doctor performance table (UPGRADED with efficiency score) -->
+      <div class="card" style="margin-top:18px"><div class="card-header"><div>
+        <div class="card-title">👨‍⚕️ Doctor Performance</div>
+        <div class="card-sub">Total, active, cancelled, cancel rate & efficiency score per physician</div>
+      </div></div>
+      <div class="tbl-wrap"><table id="an-doc-table">
+        <thead><tr><th>Doctor</th><th>Dept</th><th>Total</th><th>Active</th><th>Cancelled</th><th>Cancel Rate</th><th>Efficiency</th><th>Active Bar</th></tr></thead>
+        <tbody id="an-doc-tbody"></tbody>
+      </table></div></div>
+
+      <!-- Heatmap + Dept donut -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🔥 Slot Heatmap</div>
+          <div class="card-sub">Doctor × time-slot booking intensity</div>
+        </div></div><div class="card-body" style="padding:12px 16px;overflow-x:auto">
+          <div id="an-heatmap"></div>
+        </div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🏥 Department Breakdown</div>
+          <div class="card-sub">Appointments by specialty</div>
+        </div></div><div class="card-body">
+          <div class="donut-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110" id="an-dept-donut"></svg>
+            <div class="donut-legend" id="an-dept-legend"></div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Patient Retention + Avg Turns by Outcome -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">👥 Patient Visit Distribution</div>
+          <div class="card-sub">How many times each patient has visited</div>
+        </div></div><div class="card-body" style="padding:16px 20px">
+          <div class="retention-bars" id="an-retention"></div>
+          <div style="display:flex;gap:4px;margin-top:4px" id="an-retention-labels"></div>
+        </div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🗣️ Avg Conversation Turns by Outcome</div>
+          <div class="card-sub">How long calls run before each result</div>
+        </div></div><div class="card-body" style="padding:16px 20px">
+          <div id="an-turns-outcome"></div>
+        </div></div>
+      </div>
+
+      <!-- Top patients + Call outcomes + Language -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🏆 Top Patients</div>
+          <div class="card-sub">Most frequent visitors</div>
+        </div></div><div class="card-body" style="padding:0 0 8px">
+          <div id="an-top-patients" style="padding:8px 20px"></div>
+        </div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">📞 Call Outcomes</div>
+          <div class="card-sub">Booked vs incomplete vs dropped (ADAM)</div>
+        </div></div><div class="card-body"><div class="bar-chart" id="an-outcomes"></div></div></div>
+      </div>
+
+      <!-- Time slot + Language -->
+      <div class="two-col" style="margin-top:18px">
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">⏱ Time Slot Popularity</div>
+          <div class="card-sub">Most requested appointment times</div>
+        </div></div><div class="card-body"><div class="bar-chart" id="an-slots"></div></div></div>
+        <div class="card"><div class="card-header"><div>
+          <div class="card-title">🌐 Language Split</div>
+          <div class="card-sub">English vs Hindi calls</div>
+        </div></div><div class="card-body">
+          <div class="donut-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110" id="an-lang-donut"></svg>
+            <div class="donut-legend" id="an-lang-legend"></div>
+          </div>
+        </div></div>
+      </div>
+
+      <!-- Hourly booking heatmap (new) -->
+      <div class="card" style="margin-top:18px"><div class="card-header"><div>
+        <div class="card-title">🕐 Hourly Booking Activity</div>
+        <div class="card-sub">When patients call to book (by hour of day)</div>
+      </div></div><div class="card-body" style="padding:16px 24px">
+        <canvas id="an-hourly-canvas" height="100" style="width:100%;display:block"></canvas>
+      </div></div>
+
+    </div>
+
+    <!-- ── APPOINTMENTS ── -->
+    <div id="sec-appointments" class="section">
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="apt-q" placeholder="Search patient, doctor, date…" oninput="renderApt()"/>
+        </div>
+        <select class="f-select" id="apt-doc" onchange="renderApt()">
+          <option value="">All Doctors</option>
+        </select>
+        <select class="f-select" id="apt-time" onchange="renderApt()">
+          <option value="">All Times</option>
+        </select>
+        <select class="f-select" id="apt-dept" onchange="renderApt()">
+          <option value="">All Departments</option>
+          <option value="neurology">Neurology</option>
+          <option value="general">General</option>
+          <option value="gastro">Gastro</option>
+          <option value="dermatology">Dermatology</option>
+        </select>
+        <button class="btn primary" onclick="openAddModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>New Appointment
+        </button>
+        <button class="btn ghost" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>Export CSV
+        </button>
+      </div>
+      <div class="card card-body np">
+        <div class="card-header"><div>
+          <div class="card-title">All Appointments</div>
+          <div class="card-sub" id="apt-count-lbl"></div>
+        </div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr>
+            <th class="cb-col"><label title="Select all"><input type="checkbox" class="row-cb" id="cb-all" onchange="toggleSelectAll(this)"></label></th>
+            <th>#</th><th>First Name</th><th>Last Name</th><th>DOB</th><th>Doctor</th><th>Department</th><th>Date for booking</th><th>Time</th><th>Booked At</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="apt-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ── CALL LOGS ── -->
+    <div id="sec-calls" class="section">
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="stat-card green"><div class="stat-label">Total Calls</div>
+          <div class="stat-num" id="cl-total">—</div><div class="stat-sub">All recorded</div></div>
+        <div class="stat-card blue"><div class="stat-label">Booked</div>
+          <div class="stat-num" id="cl-booked">—</div><div class="stat-sub">Successful bookings</div></div>
+        <div class="stat-card amber"><div class="stat-label">Incomplete</div>
+          <div class="stat-num" id="cl-inc">—</div><div class="stat-sub">Did not finish</div></div>
+        <div class="stat-card cyan"><div class="stat-label">Avg Turns</div>
+          <div class="stat-num" id="cl-turns">—</div><div class="stat-sub">Per call</div></div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="cl-q" placeholder="Search by SID, patient, doctor…" oninput="renderCalls()"/>
+        </div>
+        <select class="f-select" id="cl-outcome" onchange="renderCalls()">
+          <option value="">All Outcomes</option>
+          <option value="booked">Booked</option>
+          <option value="incomplete">Incomplete</option>
+          <option value="dropped">Dropped</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select class="f-select" id="cl-lang" onchange="renderCalls()">
+          <option value="">All Languages</option>
+          <option value="EN">English</option>
+          <option value="HI">Hindi</option>
+        </select>
+      </div>
+
+      <div class="card card-body np">
+        <div class="card-header"><div>
+          <div class="card-title">Call Transcripts</div>
+          <div class="card-sub" id="cl-count-lbl">Parsed from transcripts.txt — click a row to expand</div>
+        </div></div>
+        <div class="transcript-list" id="cl-list"></div>
+      </div>
+    </div>
+
+    <!-- ── MODEL INFO ── -->
+    <div id="sec-model" class="section">
+      <div class="model-grid">
+        <div class="m-stat"><div class="m-label">Vocab Size</div><div class="m-val">50,304</div><div class="m-sub">r50k_base tokenizer</div></div>
+        <div class="m-stat"><div class="m-label">Context Length</div><div class="m-val">512</div><div class="m-sub">tokens per sequence</div></div>
+        <div class="m-stat"><div class="m-label">Embedding Dim</div><div class="m-val">768</div><div class="m-sub">n_embed</div></div>
+        <div class="m-stat"><div class="m-label">Attention Heads</div><div class="m-val">12</div><div class="m-sub">multi-head</div></div>
+        <div class="m-stat"><div class="m-label">Transformer Blocks</div><div class="m-val">12</div><div class="m-sub">N_BLOCKS</div></div>
+        <div class="m-stat"><div class="m-label">Parameters</div><div class="m-val">~120M</div><div class="m-sub">estimated total</div></div>
+      </div>
+      <div class="card"><div class="card-header"><div>
+        <div class="card-title">Training Pipeline</div>
+        <div class="card-sub">All stages completed</div>
+      </div></div><div class="card-body">
+        <div class="pipeline">
+          <div class="pip done"><div class="pip-name">Pretrain</div><div class="pip-sub">Pile dataset</div></div>
+          <div class="pip done"><div class="pip-name">FT Bilingual</div><div class="pip-sub">EN+HI</div></div>
+          <div class="pip done"><div class="pip-name">FT Instruction</div><div class="pip-sub">Response loss</div></div>
+          <div class="pip done"><div class="pip-name">Voice Server</div><div class="pip-sub">Flask+Twilio</div></div>
+          <div class="pip done"><div class="pip-name">Live</div><div class="pip-sub">Production</div></div>
+        </div>
+      </div></div>
+      <div class="two-col">
+        <div class="card"><div class="card-header"><div><div class="card-title">Hyperparameters</div></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Parameter</th><th>Value</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">T_LR</td><td>3e-4</td><td class="dim">Initial LR</td></tr>
+              <tr><td class="mono">T_LR_DECAYED</td><td>3e-5</td><td class="dim">After decay</td></tr>
+              <tr><td class="mono">T_TRAIN_STEPS</td><td>500,000</td><td class="dim">Total iterations</td></tr>
+              <tr><td class="mono">GRAD_ACCUM</td><td>8</td><td class="dim">Effective batch ×8</td></tr>
+              <tr><td class="mono">USE_AMP</td><td>True</td><td class="dim">Mixed precision</td></tr>
+              <tr><td class="mono">T_BATCH_SIZE</td><td>8</td><td class="dim">Seqs per step</td></tr>
+              <tr><td class="mono">N_HEAD</td><td>12</td><td class="dim">Attention heads</td></tr>
+              <tr><td class="mono">N_EMBED</td><td>768</td><td class="dim">Hidden size</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card"><div class="card-header"><div><div class="card-title">Fine-tune Stages</div></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Stage</th><th>LR</th><th>Steps</th><th>Data</th></tr></thead>
+            <tbody>
+              <tr><td class="bold">Base Pretrain</td><td class="mono">3e-4</td><td>500k</td><td class="dim">Pile (uncopyrighted)</td></tr>
+              <tr><td class="bold">Bilingual FT</td><td class="mono">3e-5</td><td>50k</td><td class="dim">EN+HI hospital</td></tr>
+              <tr><td class="bold">Instruction FT</td><td class="mono">1e-5</td><td>40k</td><td class="dim">50k rephrase pairs</td></tr>
+              <tr><td class="bold">FT v3 (hospital)</td><td class="mono">3e-5</td><td>15k</td><td class="dim">Perfect dataset</td></tr>
+              <tr><td class="bold">OpenAssistant FT</td><td class="mono">1e-4</td><td>20k</td><td class="dim">oasst1</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="sec-settings" class="section">
+      <div class="card"><div class="card-body">
+        <div class="set-section">
+          <h3>Voice Server</h3>
+          <div class="set-row">
+            <div><div class="set-lbl">Server URL</div><div class="set-desc">ngrok tunnel or public URL</div></div>
+            <input class="inp" style="width:280px;" type="text" value="https://your-ngrok.ngrok-free.dev/voice"/>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Flask Port</div><div class="set-desc">Voice server port (default 5000)</div></div>
+            <input class="inp" style="width:100px;" type="text" value="5000"/>
+          </div>
+        </div>
+        <div class="set-section">
+          <h3>Twilio</h3>
+          <div class="set-row">
+            <div><div class="set-lbl">Account SID</div></div>
+            <input class="inp" style="width:220px;" type="password" value="AC995f317..."/>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Auth Token</div></div>
+            <input class="inp" style="width:220px;" type="password" value="••••••••••••"/>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Twilio Number</div></div>
+            <input class="inp" style="width:160px;" type="text" value="+14783127348"/>
+          </div>
+        </div>
+        <div class="set-section">
+          <h3>Features</h3>
+          <div class="set-row">
+            <div><div class="set-lbl">Hindi support</div><div class="set-desc">Bilingual EN/HI mode</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Email notifications</div><div class="set-desc">SMTP on booking confirmed</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">AMP inference</div><div class="set-desc">Mixed precision generation</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Save transcripts</div><div class="set-desc">Log all call transcripts to file</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="set-row">
+            <div><div class="set-lbl">Live polling</div><div class="set-desc">Auto-refresh when new calls arrive (every 5s)</div></div>
+            <div class="toggle on" id="poll-toggle" onclick="togglePoll(this)"></div>
+          </div>
+        </div>
+        <button class="save-btn">Save Settings</button>
+      </div></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<div id="toast"></div>
+
+<!-- ══ BULK ACTION BAR ══════════════════════════════════════════════ -->
+<div id="bulk-bar">
+  <div id="bulk-bar-count"><span id="bulk-n">0</span> selected</div>
+  <div class="bulk-sep"></div>
+  <button class="bbtn b-cancel" onclick="bulkCancelAction()">✕ Cancel Selected</button>
+  <button class="bbtn b-delete" onclick="bulkDeleteAction()">🗑 Delete Selected</button>
+  <div class="bulk-sep"></div>
+  <button class="bbtn b-clear" onclick="clearSelection()">✕ Clear</button>
+</div>
+
+<!-- ══ ADD APPOINTMENT MODAL ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Appointment</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="m-field">
+          <label class="m-label2">First Name</label>
+          <input class="m-input" id="m-fname" type="text" placeholder="e.g. Rahul"/>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">Last Name</label>
+          <input class="m-input" id="m-lname" type="text" placeholder="e.g. Sharma"/>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">Date of Birth</label>
+          <input class="m-input" id="m-dob" type="text" placeholder="e.g. 21 March 1990"/>
+        </div>
+        <div class="m-field full">
+          <label class="m-label2">Doctor</label>
+          <select class="m-input" id="m-doctor">
+            <option value="">— Select Doctor —</option>
+            <option value="Dr Shah">Dr Shah — Neurology</option>
+            <option value="Dr Reddy">Dr Reddy — Neurology</option>
+            <option value="Dr Mehta">Dr Mehta — General</option>
+            <option value="Dr Singh">Dr Singh — General</option>
+            <option value="Dr Patel">Dr Patel — Gastroenterology</option>
+            <option value="Dr Verma">Dr Verma — Gastroenterology</option>
+            <option value="Dr Gupta">Dr Gupta — Dermatology</option>
+            <option value="Dr Kapoor">Dr Kapoor — Dermatology</option>
+          </select>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">Date</label>
+          <input class="m-input" id="m-date" type="date"/>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">Time Slot</label>
+          <select class="m-input" id="m-time">
+            <option value="8:00 AM">8:00 AM</option>
+            <option value="9:00 AM">9:00 AM</option>
+            <option value="10:00 AM">10:00 AM</option>
+            <option value="11:00 AM">11:00 AM</option>
+            <option value="12:00 PM">12:00 PM</option>
+            <option value="2:00 PM">2:00 PM</option>
+            <option value="3:00 PM">3:00 PM</option>
+            <option value="4:00 PM">4:00 PM</option>
+            <option value="5:00 PM">5:00 PM</option>
+            <option value="6:00 PM">6:00 PM</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="submitNewAppointment()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Book Appointment
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RESCHEDULE MODAL ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="reschedule-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Reschedule Appointment</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;" id="rs-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeReschedule()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="m-field full">
+          <label class="m-label2">Doctor</label>
+          <select class="m-input" id="rs-doctor">
+            <option value="Dr Shah">Dr Shah — Neurology</option>
+            <option value="Dr Reddy">Dr Reddy — Neurology</option>
+            <option value="Dr Mehta">Dr Mehta — General</option>
+            <option value="Dr Singh">Dr Singh — General</option>
+            <option value="Dr Patel">Dr Patel — Gastroenterology</option>
+            <option value="Dr Verma">Dr Verma — Gastroenterology</option>
+            <option value="Dr Gupta">Dr Gupta — Dermatology</option>
+            <option value="Dr Kapoor">Dr Kapoor — Dermatology</option>
+          </select>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">New Date</label>
+          <input class="m-input" id="rs-date" type="date"/>
+        </div>
+        <div class="m-field">
+          <label class="m-label2">New Time Slot</label>
+          <select class="m-input" id="rs-time">
+            <option value="8:00 AM">8:00 AM</option>
+            <option value="9:00 AM">9:00 AM</option>
+            <option value="10:00 AM">10:00 AM</option>
+            <option value="11:00 AM">11:00 AM</option>
+            <option value="12:00 PM">12:00 PM</option>
+            <option value="2:00 PM">2:00 PM</option>
+            <option value="3:00 PM">3:00 PM</option>
+            <option value="4:00 PM">4:00 PM</option>
+            <option value="5:00 PM">5:00 PM</option>
+            <option value="6:00 PM">6:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <!-- Current appointment preview -->
+      <div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border2);">
+        <div style="font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Current Appointment</div>
+        <div style="font-size:12px;color:var(--text2);" id="rs-current-info">—</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeReschedule()">Cancel</button>
+      <button class="btn primary" onclick="submitReschedule()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;">
+          <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Confirm Reschedule
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRM DIALOG ═════════════════════════════════════════════════ -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="conf-icon">⚠️</div>
+    <div class="confirm-title" id="conf-title">Are you sure?</div>
+    <div class="confirm-msg" id="conf-msg">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn ghost" onclick="closeConfirm()">No, go back</button>
+      <button class="btn danger" id="conf-ok-btn" onclick="confirmAction()">Yes, proceed</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const API = 'http://localhost:8000';
+
+
+let APT_DATA  = [];   // appointments array
+let CALL_DATA = [];   // parsed transcript calls
+let STATS     = {};   // stats object
+let pollTimer = null;
+let pollingOn = true;
+
+const COLORS = ['#4f8ef7','#7b5cf5','#38d9b4','#f59e4f','#f75f5f','#60c4ff','#e879f9','#34d399'];
+const DEPT_MAP = {
+  'Dr Shah':'neurology','Dr Reddy':'neurology',
+  'Dr Mehta':'general','Dr Singh':'general',
+  'Dr Patel':'gastro','Dr Verma':'gastro',
+  'Dr Gupta':'dermatology','Dr Kapoor':'dermatology',
+};
+
+// ========== REFRESH WITH DELAY ==========
+async function refreshDashboard() {
+  const btn = document.getElementById('refreshBtn');
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Refreshing...';
+  btn.classList.add('loading');
+  await new Promise(resolve => setTimeout(resolve, 200));
+  await loadAll();
+  btn.innerHTML = originalHTML;
+  btn.classList.remove('loading');
+  showToast('Dashboard refreshed');
+}
+
+// Add spin animation keyframes dynamically
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
+document.head.appendChild(styleSheet);
+
+
+function doLogin(){
+  const u = document.getElementById('lu').value.trim();
+  const p = document.getElementById('lp').value.trim();
+  const err = document.getElementById('lerr');
+
+  fetch(`${API}/api/login`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:u, password:p})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if(d.ok){ enterDashboard(); }
+    else { err.style.display='block'; }
+  })
+  .catch(() => {
+    // Offline fallback
+    if(u==='admin' && p==='admin123'){ enterDashboard(); }
+    else { err.style.display='block'; }
+  });
+}
+document.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function enterDashboard(){
+  document.getElementById('login-screen').style.display = 'none';
+  sessionStorage.setItem('adam_logged_in', '1'); // persist across F5 refresh
+  loadAll();
+  startPolling();
+}
+function logout(){
+  stopPolling();
+  sessionStorage.removeItem('adam_logged_in');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// Auto-restore session on page load
+(function(){
+  if(sessionStorage.getItem('adam_logged_in') === '1'){
+    document.getElementById('login-screen').style.display = 'none';
+    loadAll();
+    startPolling();
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA LOADING
+// ═══════════════════════════════════════════════════════════════════
+async function loadAll(){
+  try {
+    const [aptRes, statsRes, callRes] = await Promise.all([
+      fetch(`${API}/api/appointments`),
+      fetch(`${API}/api/stats`),
+      fetch(`${API}/api/transcripts`),
+    ]);
+    APT_DATA  = await aptRes.json();
+    STATS     = await statsRes.json();
+    const cd  = await callRes.json();
+    CALL_DATA = cd.calls || [];
+  } catch(e) {
+    // Backend offline — use embedded data
+    APT_DATA  = EMBEDDED_APTS;
+    CALL_DATA = EMBEDDED_CALLS;
+    STATS     = buildLocalStats();
+    showToast('Backend offline — showing embedded data', 4000);
+  }
+  populateFilters();
+  renderDashboard();
+  renderApt();
+  renderAnalytics();
+  renderCalls();
+  updateNavBadges();
+}
+
+// ─── Live polling ────────────────────────────────────────────────
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/api/poll`);
+      const d = await r.json();
+      if(d.changed){
+        await loadAll();
+        const notice = document.getElementById('update-notice');
+        notice.style.display = 'inline-block';
+        setTimeout(() => notice.style.display='none', 3000);
+        showToast('⟳ New call data received');
+      }
+    } catch(e){}
+  }, 5000);
+}
+function stopPolling(){ clearInterval(pollTimer); pollTimer=null; }
+function togglePoll(el){
+  el.classList.toggle('on');
+  pollingOn = el.classList.contains('on');
+  if(pollingOn) startPolling(); else stopPolling();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+function go(id, el){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+
+  // Hide badge on the clicked nav item
+  if(el){
+    const badge = el.querySelector('.nav-badge');
+    if(badge) badge.style.display = 'none';
+  }
+}
+
+function updateNavBadges(){
+  const nc = document.getElementById('nav-count');
+  const ncl = document.getElementById('nav-calls');
+  if(nc) nc.textContent = APT_DATA.length || STATS.total || '—';
+  if(ncl) ncl.textContent = CALL_DATA.length || STATS.total_calls || '—';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHARTS HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function barChart(elId, dataObj, colors){
+  const entries = Object.entries(dataObj).sort((a,b)=>b[1]-a[1]);
+  const max = entries[0]?entries[0][1]:1;
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = entries.map(([lbl,val],i) =>
+    `<div class="bar-row">
+      <div class="bar-lbl" title="${lbl}">${lbl}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(val/max*100)}%;background:${colors[i%colors.length]};"></div></div>
+      <div class="bar-val">${val}</div>
+    </div>`
+  ).join('');
+}
+
+function donut(svgId, legendId, dataObj, colors){
+  const svg = document.getElementById(svgId);
+  const legend = document.getElementById(legendId);
+  if(!svg||!legend) return;
+  const total = Object.values(dataObj).reduce((a,b)=>a+b,0);
+  if(!total){ svg.innerHTML=''; legend.innerHTML=''; return; }
+  svg.innerHTML=''; legend.innerHTML='';
+  const cx=55,cy=55,r=38,sw=16;
+  let offset=0;
+  const keys = Object.keys(dataObj);
+  keys.forEach((key,i) => {
+    const val=dataObj[key], pct=val/total;
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    const circ=2*Math.PI*r;
+    c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);
+    c.setAttribute('fill','none');c.setAttribute('stroke',colors[i%colors.length]);
+    c.setAttribute('stroke-width',sw);
+    c.setAttribute('stroke-dasharray',`${circ*pct} ${circ*(1-pct)}`);
+    c.setAttribute('stroke-dashoffset','0');
+    c.setAttribute('transform',`rotate(${-90+offset*360} ${cx} ${cy})`);
+    svg.appendChild(c);
+    offset+=pct;
+    legend.innerHTML+=`<div class="leg-item"><div class="leg-dot" style="background:${colors[i%colors.length]}"></div>${key} (${val})</div>`;
+  });
+  const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+  txt.setAttribute('x',cx);txt.setAttribute('y',cy+5);
+  txt.setAttribute('text-anchor','middle');txt.setAttribute('fill','#dde4f5');
+  txt.setAttribute('font-size','16');txt.setAttribute('font-weight','600');
+  txt.textContent=total;
+  svg.appendChild(txt);
+}
+
+function timeline(barsId, labelsId, dayObj){
+  const barsEl = document.getElementById(barsId);
+  const labsEl = document.getElementById(labelsId);
+  if(!barsEl||!labsEl) return;
+  const days = Object.keys(dayObj).sort();
+  const vals = days.map(d=>dayObj[d]);
+  const max = Math.max(...vals,1);
+  barsEl.innerHTML = days.map((d,i) => {
+    const h = Math.max(8, Math.round(vals[i]/max*100));
+    return `<div class="tl-bar" style="height:${h}%;background:linear-gradient(to top,var(--accent),var(--accent2));" data-tip="${d}: ${vals[i]}"></div>`;
+  }).join('');
+  labsEl.innerHTML = days.map(d=>`<span>${d.slice(5)}</span>`).join('');
+}
+
+function setText(id, val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+function renderDashboard(){
+  const s = STATS;
+  setText('s-total',    s.total ?? '—');
+  setText('s-calls',    s.total_calls ?? '—');
+  setText('s-patients', s.unique_patients ?? '—');
+  setText('s-topdoc',   s.top_doctor ?? '—');
+  setText('s-booked',   s.call_outcomes?.booked ?? '—');
+  setText('s-incomplete', (s.call_outcomes?.incomplete??0)+(s.call_outcomes?.dropped??0));
+  setText('s-turns',    s.avg_turns ?? '—');
+  setText('s-avg',      s.avg_per_day ?? '—');
+
+  if(s.doc_counts)  barChart('db-doctor', s.doc_counts, COLORS);
+  if(s.time_counts) barChart('db-slot',   s.time_counts, COLORS.slice(2));
+
+  if(s.day_counts)  timeline('db-timeline','db-tl-labels', s.day_counts);
+  if(s.dept_counts) donut('db-donut','db-legend', s.dept_counts,
+    ['#4f8ef7','#38d9b4','#f59e4f','#7b5cf5','#f75f5f']);
+
+  if(s.call_outcomes){
+    const oc = s.call_outcomes;
+    barChart('db-outcomes', oc, ['#38d9b4','#f59e4f','#f75f5f','#60c4ff']);
+  }
+  if(s.lang_counts) donut('db-lang-donut','db-lang-legend', s.lang_counts, ['#4f8ef7','#f59e4f']);
+
+  // Recent appointments
+  const tbody = document.getElementById('db-recent');
+  if(tbody && APT_DATA.length){
+    const recent = [...APT_DATA].slice(-5).reverse();
+    tbody.innerHTML = recent.map(r => {
+      const dp = r.department||DEPT_MAP[r.doctor||r.doc||'']||'general';
+      const cancelled = r.status === 'cancelled';
+      return `<tr style="${cancelled?'opacity:.55':''}">
+        <td class="bold">${esc(r.first_name||r.fn||'')} ${esc(r.last_name||r.ln||'')}</td>
+        <td>${esc(r.doctor||r.doc||'')}</td>
+        <td><span class="pill ${dp}">${dp}</span></td>
+        <td>${esc(r.date||'')}</td>
+        <td class="mono">${esc(r.time||'')}</td>
+        <td class="dim">${esc(r.booked_at||r.at||'')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Dashboard insights (reuse same logic as analytics insights)
+  loadDbInsights();
+}
+
+function loadDbInsights(){
+  const el = document.getElementById('db-insights');
+  if(!el) return;
+  const s = STATS;
+  const insights = [];
+  if(s.cancel_rate !== undefined && s.cancel_rate > 0)
+    insights.push({type: s.cancel_rate > 20 ? 'warning':'success',
+      title: s.cancel_rate > 20 ? 'High Cancellation Rate' : 'Cancellation Rate OK',
+      body: s.cancel_rate > 20
+        ? `${s.cancel_rate}% of appointments are cancelled. Consider follow-up reminders.`
+        : `Cancellation rate is a healthy ${s.cancel_rate}%.`,
+      metric:`${s.cancel_rate}%`});
+  if(s.doc_counts){
+    const top = Object.entries(s.doc_counts).sort((a,b)=>b[1]-a[1])[0];
+    const avg = Object.values(s.doc_counts).reduce((a,b)=>a+b,0)/Object.keys(s.doc_counts).length;
+    if(top && top[1] > avg * 1.8)
+      insights.push({type:'warning',title:'Doctor Overload',
+        body:`${top[0]} has ${top[1]} bookings — ${(top[1]/avg).toFixed(1)}× average. Consider redistributing.`,
+        metric:`${top[1]} apts`});
+  }
+  const crCall = s.conversion_rate ?? (s.call_outcomes?.booked && s.total_calls
+    ? Math.round(s.call_outcomes.booked/s.total_calls*100) : null);
+  if(crCall !== null)
+    insights.push({
+      type: crCall >= 60 ? 'success':'warning',
+      title: crCall >= 60 ? 'Strong Call Conversion':'Low Call Conversion',
+      body: crCall >= 60
+        ? `ADAM converts ${crCall}% of calls to bookings. Excellent!`
+        : `Only ${crCall}% of calls become bookings. Review ADAM's drop-off points.`,
+      metric:`${crCall}%`});
+  if(s.peak_time)
+    insights.push({type:'info',title:'Peak Slot',
+      body:`Most appointments cluster at ${s.peak_time}. Ensure staff coverage during this window.`,
+      metric:s.peak_time});
+  const lc=s.lang_counts||{};
+  const hi=lc.HI||0,en=lc.EN||0,tl=hi+en;
+  if(tl>0)
+    insights.push({type:'info',title:'Language Mix',
+      body:`${Math.round(en/tl*100)}% English · ${Math.round(hi/tl*100)}% Hindi across all ADAM calls.`,
+      metric:`${en}EN / ${hi}HI`});
+  if(s.repeat_patients)
+    insights.push({type:'success',title:'Repeat Patients',
+      body:`${s.repeat_patients} patient${s.repeat_patients!==1?'s have':' has'} booked 2+ times — strong retention.`,
+      metric:`${s.repeat_patients} pts`});
+  const icons={warning:'⚠️',success:'✅',info:'💡'};
+  el.innerHTML = insights.map(ins=>`
+    <div class="insight-card ${ins.type}">
+      <span class="insight-icon">${icons[ins.type]||'📌'}</span>
+      <div style="flex:1">
+        <div class="insight-title">${esc(ins.title)}</div>
+        <div class="insight-body">${esc(ins.body)}</div>
+      </div>
+      <div class="insight-metric">${esc(ins.metric||'')}</div>
+    </div>`).join('') ||
+    '<div style="color:var(--text3);font-size:12px;grid-column:1/-1;text-align:center;padding:12px">No data yet.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// APPOINTMENTS
+// ═══════════════════════════════════════════════════════════════════
+function populateFilters(){
+  const docs  = [...new Set(APT_DATA.map(r=>r.doctor||r.doc).filter(Boolean))];
+  const times = [...new Set(APT_DATA.map(r=>r.time).filter(Boolean))];
+  const dSel = document.getElementById('apt-doc');
+  const tSel = document.getElementById('apt-time');
+  if(dSel && dSel.options.length<=1) docs.forEach(d=>dSel.innerHTML+=`<option value="${d}">${d}</option>`);
+  if(tSel && tSel.options.length<=1) times.sort().forEach(t=>tSel.innerHTML+=`<option value="${t}">${t}</option>`);
+}
+
+function renderApt(){
+  const q    = (document.getElementById('apt-q')?.value||'').toLowerCase();
+  const doc  = document.getElementById('apt-doc')?.value||'';
+  const time = document.getElementById('apt-time')?.value||'';
+  const dept = document.getElementById('apt-dept')?.value||'';
+  let data = APT_DATA.filter(r => {
+    const name = `${r.first_name||r.fn||''} ${r.last_name||r.ln||''} ${r.doctor||r.doc||''} ${r.date||''}`.toLowerCase();
+    const d = r.doctor||r.doc||'';
+    const t = r.time||'';
+    const dp= r.department||DEPT_MAP[d]||'';
+    return name.includes(q) && (!doc||d===doc) && (!time||t===time) && (!dept||dp===dept);
+  });
+  setText('apt-count-lbl', `Showing ${data.length} of ${APT_DATA.length} appointments`);
+  const tbody = document.getElementById('apt-tbody');
+  if(!tbody) return;
+  // Remember selected IDs across re-renders
+  const prevSelected = getSelectedIds();
+  tbody.innerHTML = data.map((r,i)=>{
+    const d  = r.doctor||r.doc||'';
+    const dp = r.department||DEPT_MAP[d]||'general';
+    // Use the real backend id when present; otherwise stamp a stable index-based id
+    if(r.id == null) r.id = i + 1;
+    const id = r.id;
+    const wasChecked = prevSelected.has(id);
+    const cancelled = r.status === 'cancelled';
+    const statusPill = cancelled
+      ? `<span class="status-pill cancelled">Cancelled</span>`
+      : `<span class="status-pill active">Active</span>`;
+    const cancelBtn = cancelled
+      ? `<button class="act-btn cancel" disabled>Cancelled</button>`
+      : `<button class="act-btn cancel" onclick="askCancel(${id},event)">✕ Cancel</button>`;
+    return `<tr data-id="${id}" class="${wasChecked?' row-selected':''}" style="${cancelled?'opacity:.62':''}">
+      <td class="cb-col" onclick="event.stopPropagation()">
+        <input type="checkbox" class="row-cb" data-id="${id}"
+          ${wasChecked?'checked':''}
+          onchange="handleRowCb(this)">
+      </td>
+      <td class="dim">${i+1}</td>
+      <td class="bold">${esc(r.first_name||r.fn||'')}</td>
+      <td>${esc(r.last_name||r.ln||'')}</td>
+      <td>${esc(r.dob||'')}</td>
+      <td>${esc(d)}</td>
+      <td><span class="pill ${dp}">${dp}</span></td>
+      <td>${esc(r.date||'')}</td>
+      <td class="mono">${esc(r.time||'')}</td>
+      <td class="dim">${esc(r.booked_at||r.at||'')}</td>
+      <td>${statusPill}</td>
+      <td class="actions">${cancelBtn}<button class="act-btn reschedule" onclick="openReschedule(${id},event)">📅 Reschedule</button><button class="act-btn delete" onclick="askDelete(${id},event)">🗑 Delete</button></td>
+    </tr>`;
+  }).join('');
+
+  updateBulkBar();
+  syncSelectAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BULK SELECTION
+// ═══════════════════════════════════════════════════════════════════
+function getSelectedIds(){
+  return new Set([...document.querySelectorAll('#apt-tbody .row-cb:checked')]
+    .map(cb => parseInt(cb.dataset.id)));
+}
+
+function handleRowCb(cb){
+  const row = cb.closest('tr');
+  if(row) row.classList.toggle('row-selected', cb.checked);
+  updateBulkBar();
+  syncSelectAll();
+}
+
+function toggleSelectAll(masterCb){
+  document.querySelectorAll('#apt-tbody .row-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+    const row = cb.closest('tr');
+    if(row) row.classList.toggle('row-selected', masterCb.checked);
+  });
+  updateBulkBar();
+}
+
+function syncSelectAll(){
+  const all    = document.querySelectorAll('#apt-tbody .row-cb');
+  const chk    = document.querySelectorAll('#apt-tbody .row-cb:checked');
+  const master = document.getElementById('cb-all');
+  if(!master) return;
+  master.indeterminate = chk.length > 0 && chk.length < all.length;
+  master.checked       = all.length > 0 && chk.length === all.length;
+}
+
+function updateBulkBar(){
+  const n   = getSelectedIds().size;
+  const bar = document.getElementById('bulk-bar');
+  const lbl = document.getElementById('bulk-n');
+  if(lbl) lbl.textContent = n;
+  if(bar) bar.classList.toggle('visible', n > 0);
+}
+
+function clearSelection(){
+  document.querySelectorAll('#apt-tbody .row-cb').forEach(cb => {
+    cb.checked = false;
+    const row = cb.closest('tr');
+    if(row) row.classList.remove('row-selected');
+  });
+  const master = document.getElementById('cb-all');
+  if(master){ master.checked = false; master.indeterminate = false; }
+  updateBulkBar();
+}
+
+function bulkDeleteAction(){
+  const ids = [...getSelectedIds()];
+  if(!ids.length) return;
+  showConfirm('🗑️', `Delete ${ids.length} Appointment${ids.length>1?'s':''}`,
+    `Permanently delete ${ids.length} selected appointment${ids.length>1?'s':''}? This cannot be undone.`,
+    'Yes, Delete All', () => doBulkDelete(ids));
+}
+
+function bulkCancelAction(){
+  const ids = [...getSelectedIds()];
+  if(!ids.length) return;
+  showConfirm('✕', `Cancel ${ids.length} Appointment${ids.length>1?'s':''}`,
+    `Mark ${ids.length} selected appointment${ids.length>1?'s':''} as cancelled?`,
+    'Yes, Cancel All', () => doBulkCancel(ids));
+}
+
+async function doBulkDelete(ids){
+  try {
+    const res = await fetch(`${API}/api/appointments/bulk-delete`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ids})
+    });
+    const d = await res.json();
+    if(d.ok){
+      showToast(`🗑️ ${d.deleted} appointment${d.deleted!==1?'s':''} deleted`);
+      await loadAll();
+      clearSelection();
+    } else { showToast('❌ Bulk delete failed: ' + (d.error||'unknown')); }
+  } catch(_){
+    APT_DATA = APT_DATA.filter(r => !ids.includes(r.id));
+    renderApt(); updateNavBadges();
+    clearSelection();
+    showToast(`🗑️ ${ids.length} deleted (offline mode)`);
+  }
+}
+
+async function doBulkCancel(ids){
+  ids.forEach(id => {
+    const r = APT_DATA.find(x => x.id === id);
+    if(r) r.status = 'cancelled';
+  });
+  renderApt();
+  showToast(`✕ ${ids.length} appointment${ids.length!==1?'s':''} cancelled`);
+  try {
+    const res = await fetch(`${API}/api/appointments/bulk-cancel`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ids})
+    });
+    const d = await res.json();
+    if(d.ok){ await loadAll(); clearSelection(); }
+    else { showToast('❌ Bulk cancel failed: ' + (d.error||'unknown')); }
+  } catch(_){ clearSelection(); /* offline — local state stays */ }
+}
+
+function exportCSV(){
+  const rows = [['First Name','Last Name','Doctor','Department','Date','Time','Booked At'],
+    ...APT_DATA.map(r=>[r.first_name||r.fn,r.last_name||r.ln,r.doctor||r.doc,
+      r.department||DEPT_MAP[r.doctor||r.doc]||'',r.date,r.time,r.booked_at||r.at])];
+  const blob = new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download='appointments_export.csv'; a.click();
+  showToast('CSV exported');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADVANCED ANALYTICS
+// ═══════════════════════════════════════════════════════════════════
+function renderAnalytics(){
+  const s = STATS;
+  if(!s || !s.total) return;
+
+  // ── KPIs ──────────────────────────────────────────────────────────
+  setText('an-total',    s.total ?? '—');
+  setText('an-active',   s.active_count ?? '—');
+  setText('an-cancelled', s.cancelled_count ?? '—');
+  setText('an-cancel-rate-sub', `${s.cancel_rate ?? 0}% cancel rate`);
+  setText('an-repeat',   s.repeat_patients ?? '—');
+  setText('an-avgday',   s.avg_per_day ?? '—');
+  setText('an-peak',     s.peak_time ?? '—');
+  const cr = s.conversion_rate ?? (s.call_outcomes?.booked && s.total_calls ? Math.round(s.call_outcomes.booked/s.total_calls*100) : 0);
+  setText('an-conv-rate', cr + '%');
+  setText('an-conv-big',  cr + '%');
+
+  // ── Daily Trend (Canvas line chart) ───────────────────────────────
+  if(s.daily_trend) drawLineChart('an-trend-canvas', s.daily_trend);
+
+  // ── Weekly Pattern (Canvas bar chart) ─────────────────────────────
+  if(s.weekly_pattern) drawWeeklyChart('an-weekly-canvas', s.weekly_pattern);
+
+  // ── Forecast ─────────────────────────────────────────────────────
+  if(s.daily_trend || s.forecast) drawForecast(s.daily_trend, s.forecast);
+
+  // ── ADAM Funnel ───────────────────────────────────────────────────
+  if(s.funnel || s.total_calls) drawFunnel(s.funnel || {
+    total_calls: s.total_calls,
+    reached_booking: (s.total_calls||0) - (s.call_outcomes?.dropped||0),
+    completed: (s.total_calls||0) - (s.call_outcomes?.dropped||0) - (s.call_outcomes?.incomplete||0),
+    booked: s.call_outcomes?.booked||0,
+    conversion_rate: cr,
+  });
+
+  // ── Doctor Performance Table (with efficiency) ────────────────────
+  const tbody = document.getElementById('an-doc-tbody');
+  if(tbody && s.doctor_stats){
+    const docs = Object.entries(s.doctor_stats).sort((a,b)=>b[1].total - a[1].total);
+    tbody.innerHTML = docs.map(([doc, ds])=>{
+      const rate = ds.cancel_rate;
+      const eff  = ds.efficiency_score ?? Math.max(0, Math.round(100 - rate * 1.5));
+      const rateColor = rate>40?'var(--danger)':rate>15?'var(--warn)':'var(--accent3)';
+      const effColor  = eff>80?'var(--accent3)':eff>60?'var(--warn)':'var(--danger)';
+      const activeW = ds.total ? Math.round(ds.active/ds.total*100) : 0;
+      const dept = ds.department || (DEPT_MAP[doc]||'general');
+      return `<tr>
+        <td class="bold">${esc(doc)}</td>
+        <td><span class="pill ${dept}">${dept}</span></td>
+        <td>${ds.total}</td>
+        <td style="color:var(--accent3)">${ds.active}</td>
+        <td style="color:var(--danger)">${ds.cancelled}</td>
+        <td><span style="font-weight:600;color:${rateColor}">${rate}%</span></td>
+        <td>
+          <div class="efficiency-score">
+            <div class="eff-ring">
+              <svg width="54" height="54" viewBox="0 0 54 54">
+                <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="5"/>
+                <circle cx="27" cy="27" r="22" fill="none" stroke="${effColor}" stroke-width="5"
+                  stroke-dasharray="${Math.round(2*Math.PI*22*eff/100)} ${Math.round(2*Math.PI*22*(1-eff/100))}"
+                  stroke-linecap="round" style="transition:stroke-dasharray .8s"/>
+              </svg>
+              <div class="eff-num" style="color:${effColor}">${eff}</div>
+            </div>
+          </div>
+        </td>
+        <td style="min-width:110px">
+          <div style="background:rgba(247,95,95,.18);border-radius:4px;height:8px;overflow:hidden">
+            <div style="width:${activeW}%;height:100%;background:var(--accent3);border-radius:4px;transition:width .4s"></div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Heatmap ───────────────────────────────────────────────────────
+  const hmEl = document.getElementById('an-heatmap');
+  if(hmEl && s.heatmap){
+    const docs  = Object.keys(s.heatmap);
+    const slots = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM'];
+    let maxVal  = 0;
+    docs.forEach(d => slots.forEach(sl => { if((s.heatmap[d][sl]||0)>maxVal) maxVal=(s.heatmap[d][sl]||0); }));
+    const cell = (v) => {
+      const pct = maxVal ? v/maxVal : 0;
+      const bg  = pct>0.66 ? 'rgba(79,142,247,.75)' : pct>0.33 ? 'rgba(79,142,247,.35)' : pct>0 ? 'rgba(79,142,247,.12)' : 'transparent';
+      const txt = pct>0.33 ? 'var(--text)' : 'var(--text3)';
+      return `<td style="text-align:center;background:${bg};color:${txt};font-weight:${v?'600':'400'};font-size:11px;padding:5px 7px;border-radius:4px">${v||'—'}</td>`;
+    };
+    hmEl.innerHTML = `<table style="width:100%;border-collapse:separate;border-spacing:3px">
+      <thead><tr><th style="text-align:left;font-size:10px;color:var(--text3);padding:4px">Doctor</th>
+        ${slots.map(sl=>`<th style="font-size:9px;color:var(--text3);text-align:center;padding:4px">${sl}</th>`).join('')}
+      </tr></thead>
+      <tbody>${docs.map(doc=>`<tr>
+        <td style="font-size:11px;font-weight:600;padding:4px 6px;white-space:nowrap">${esc(doc)}</td>
+        ${slots.map(sl=>cell(s.heatmap[doc][sl]||0)).join('')}
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  // ── Department Donut ─────────────────────────────────────────────
+  if(s.dept_counts) donutChart('an-dept-donut','an-dept-legend',s.dept_counts,COLORS);
+
+  // ── Patient Visit Distribution ───────────────────────────────────
+  if(s.visit_distribution) drawRetention(s.visit_distribution);
+  else {
+    // derive from patient_counts
+    const vc = {};
+    if(s.patient_counts){
+      Object.values(s.patient_counts).forEach(v=>{
+        const b = String(Math.min(v, 5));
+        vc[b] = (vc[b]||0)+1;
+      });
+      drawRetention(vc);
+    }
+  }
+
+  // ── Avg Turns by Outcome ─────────────────────────────────────────
+  if(s.avg_turns_by_outcome) drawTurnsByOutcome(s.avg_turns_by_outcome);
+  else if(s.avg_turns){
+    drawTurnsByOutcome({booked: s.avg_turns});
+  }
+
+  // ── Top Patients ─────────────────────────────────────────────────
+  const tpEl = document.getElementById('an-top-patients');
+  if(tpEl && s.top_patients){
+    const maxC = s.top_patients[0]?.count || 1;
+    tpEl.innerHTML = s.top_patients.map((p,i)=>{
+      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+      const pct = Math.round(p.count/maxC*100);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px;width:24px">${medals[i]||'·'}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12.5px">${esc(p.name)}</div>
+          <div style="margin-top:4px;background:rgba(79,142,247,.1);border-radius:4px;height:6px">
+            <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:4px;transition:width .5s"></div>
+          </div>
+        </div>
+        <span style="font-weight:700;font-size:13px;color:var(--accent)">${p.count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Call Outcomes bar chart ───────────────────────────────────────
+  if(s.call_outcomes) barChart('an-outcomes', s.call_outcomes,
+    ['var(--accent3)','var(--danger)','var(--warn)','#888']);
+
+  // ── Time Slot bar chart ───────────────────────────────────────────
+  if(s.time_counts) barChart('an-slots', s.time_counts, COLORS);
+
+  // ── Language Donut ───────────────────────────────────────────────
+  if(s.lang_counts) donutChart('an-lang-donut','an-lang-legend', s.lang_counts,
+    ['var(--accent)','var(--warn)']);
+
+  // ── Hourly canvas ────────────────────────────────────────────────
+  if(s.hourly_counts) drawHourlyChart('an-hourly-canvas', s.hourly_counts);
+
+  // ── Load AI Insights ─────────────────────────────────────────────
+  loadInsights();
+}
+
+// ─── Forecast chart ──────────────────────────────────────────────────
+function drawForecast(actual, forecast){
+  const el = document.getElementById('an-forecast-bars');
+  if(!el) return;
+  const actKeys = Object.keys(actual||{}).slice(-7);
+  const fcKeys  = Object.keys(forecast||{});
+  const allVals = [...actKeys.map(k=>(actual||{})[k]||0), ...fcKeys.map(k=>(forecast||{})[k]||0)];
+  const maxV = Math.max(...allVals, 1);
+
+  const cols = [
+    ...actKeys.map(k => ({label: k.slice(5), val: (actual||{})[k]||0, type:'actual'})),
+    ...fcKeys.map(k  => ({label: k.slice(5), val: (forecast||{})[k]||0, type:'predicted'})),
+  ];
+
+  el.innerHTML = cols.map(c => {
+    const h = Math.max(8, Math.round(c.val/maxV*100));
+    return `<div class="fc-col">
+      <div class="fc-val">${c.val}</div>
+      <div class="fc-bar ${c.type}" style="height:${h}%;align-self:flex-end;"></div>
+      <div class="fc-label">${c.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── ADAM Call Funnel ─────────────────────────────────────────────────
+function drawFunnel(f){
+  const el = document.getElementById('an-funnel');
+  if(!el || !f) return;
+  const steps = [
+    {label:'Calls Received', val: f.total_calls||0, color:'var(--accent)'},
+    {label:'Engaged',        val: f.reached_booking||0, color:'var(--accent2)'},
+    {label:'Completed',      val: f.completed||0, color:'var(--accent3)'},
+    {label:'Booked',         val: f.booked||0, color:'#22c99a'},
+  ];
+  const maxV = steps[0].val || 1;
+  el.innerHTML = steps.map(s => {
+    const pct = Math.round(s.val/maxV*100);
+    return `<div class="funnel-step">
+      <div class="funnel-label">${s.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar-fill" style="width:${pct}%;background:${s.color};">${s.val}</div>
+      </div>
+      <div class="funnel-val">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Patient retention bars ───────────────────────────────────────────
+function drawRetention(vd){
+  const el = document.getElementById('an-retention');
+  const lblEl = document.getElementById('an-retention-labels');
+  if(!el || !vd) return;
+  const labels = ['1 visit','2 visits','3 visits','4 visits','5+ visits'];
+  const vals = labels.map((_,i) => vd[String(i+1)]||0);
+  const maxV = Math.max(...vals, 1);
+  const colors = ['var(--accent3)','var(--accent)','var(--accent2)','var(--warn)','var(--danger)'];
+  el.innerHTML = vals.map((v,i) => {
+    const h = Math.max(6, Math.round(v/maxV*100));
+    return `<div class="ret-col">
+      <div class="ret-val">${v}</div>
+      <div class="ret-bar" style="height:${h}%;background:${colors[i]};width:100%"></div>
+    </div>`;
+  }).join('');
+  if(lblEl) lblEl.innerHTML = labels.map((l,i) => `<div style="flex:1;font-size:8.5px;color:var(--text3);text-align:center">${l}</div>`).join('');
+}
+
+// ─── Avg turns by outcome ─────────────────────────────────────────────
+function drawTurnsByOutcome(tbo){
+  const el = document.getElementById('an-turns-outcome');
+  if(!el || !tbo) return;
+  const maxT = Math.max(...Object.values(tbo), 1);
+  const colors = {booked:'var(--accent3)',incomplete:'var(--warn)',dropped:'var(--info)',cancelled:'var(--danger)'};
+  el.innerHTML = Object.entries(tbo).map(([k,v]) => `
+    <div class="turns-row">
+      <span class="turns-outcome"><span class="pill ${k}">${k}</span></span>
+      <div class="turns-bar-wrap">
+        <div class="turns-bar" style="width:${Math.round(v/maxT*100)}%;background:${colors[k]||'var(--accent)'}"></div>
+      </div>
+      <span class="turns-val">${v} turns</span>
+    </div>`).join('');
+}
+
+// ─── Hourly booking activity chart ────────────────────────────────────
+function drawHourlyChart(id, data){
+  const canvas = document.getElementById(id);
+  if(!canvas) return;
+  const W = canvas.offsetWidth || 500;
+  const H = canvas.height || 100;
+  canvas.width = W;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const hours = Object.keys(data).sort((a,b)=>+a - +b);
+  const vals  = hours.map(h => data[h]||0);
+  const maxV  = Math.max(...vals, 1);
+  const PAD   = {t:12, r:12, b:24, l:24};
+  const cw    = W - PAD.l - PAD.r;
+  const ch    = H - PAD.t - PAD.b;
+  const barW  = cw / hours.length;
+  const GAP   = 4;
+
+  hours.forEach((hr, i) => {
+    const v = vals[i];
+    const barH = (v/maxV) * ch;
+    const x = PAD.l + i * barW + GAP/2;
+    const y = PAD.t + ch - barH;
+    const pct = v/maxV;
+    const r=79, g=142, b=247;
+    const alpha = 0.2 + pct * 0.75;
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW-GAP, barH, 3);
+    ctx.fill();
+    // Label
+    const label = +hr >= 12 ? `${+hr===12?12:+hr-12}PM` : `${hr}AM`;
+    ctx.fillStyle='rgba(255,255,255,.4)';
+    ctx.font='8.5px Sora,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(label, x+(barW-GAP)/2, H-PAD.b+12);
+    if(v>0){
+      ctx.fillStyle='rgba(255,255,255,.7)';
+      ctx.font='bold 9px Sora,sans-serif';
+      ctx.fillText(v, x+(barW-GAP)/2, y-3);
+    }
+  });
+}
+
+// ─── AI Insights loader ───────────────────────────────────────────────
+async function loadInsights(){
+  const el = document.getElementById('an-insights');
+  if(!el) return;
+
+  // Build insights locally from STATS if backend offline
+  const s = STATS;
+  const localInsights = [];
+
+  if(s.cancel_rate !== undefined){
+    if(s.cancel_rate > 20)
+      localInsights.push({type:'warning', title:'High Cancellation Rate',
+        body:`Overall cancellation rate is ${s.cancel_rate}%. Consider SMS reminders 24h before appointments.`,
+        metric:`${s.cancel_rate}%`});
+  }
+  if(s.doc_counts){
+    const top = Object.entries(s.doc_counts).sort((a,b)=>b[1]-a[1])[0];
+    const avg = Object.values(s.doc_counts).reduce((a,b)=>a+b,0)/Object.keys(s.doc_counts).length;
+    if(top && top[1] > avg * 1.8)
+      localInsights.push({type:'warning', title:'Doctor Overload Detected',
+        body:`${top[0]} has ${top[1]} appointments — ${(top[1]/avg).toFixed(1)}× the average. Consider redistributing.`,
+        metric:`${top[1]} apts`});
+  }
+  const cr2 = s.conversion_rate ?? (s.call_outcomes?.booked && s.total_calls ? Math.round(s.call_outcomes.booked/s.total_calls*100) : null);
+  if(cr2 !== null){
+    if(cr2 < 60)
+      localInsights.push({type:'warning', title:'Low Call Conversion',
+        body:`Only ${cr2}% of calls result in a booking. Review ADAM's dialogue flow for drop-off points.`,
+        metric:`${cr2}%`});
+    else
+      localInsights.push({type:'success', title:'Strong Call Conversion',
+        body:`ADAM is converting ${cr2}% of calls to bookings. Excellent performance!`,
+        metric:`${cr2}%`});
+  }
+  if(s.peak_time)
+    localInsights.push({type:'info', title:'Peak Booking Slot',
+      body:`Most appointments are at ${s.peak_time}. Ensure adequate staffing during this window.`,
+      metric:s.peak_time});
+
+  const lc = s.lang_counts||{};
+  const hi=lc.HI||0, en=lc.EN||0, tl=hi+en;
+  if(tl > 0 && hi/tl > 0.4)
+    localInsights.push({type:'info', title:'Hindi Usage High',
+      body:`${Math.round(hi/tl*100)}% of calls are in Hindi. Consider Hindi-language appointment reminders.`,
+      metric:`${Math.round(hi/tl*100)}% HI`});
+
+  // Try real endpoint
+  let insights = localInsights;
+  try {
+    const r = await fetch(`${API}/api/insights`);
+    if(r.ok){
+      const d = await r.json();
+      if(d.insights && d.insights.length) insights = d.insights;
+    }
+  } catch(_){}
+
+  const icons = {warning:'⚠️', success:'✅', info:'💡'};
+  el.innerHTML = insights.map(ins => `
+    <div class="insight-card ${ins.type}">
+      <span class="insight-icon">${icons[ins.type]||'📌'}</span>
+      <div style="flex:1">
+        <div class="insight-title">${esc(ins.title)}</div>
+        <div class="insight-body">${esc(ins.body)}</div>
+      </div>
+      <div class="insight-metric">${esc(ins.metric||'')}</div>
+    </div>`).join('') || '<div style="color:var(--text3);font-size:12px;grid-column:1/-1;text-align:center;padding:12px">No insights available.</div>';
+}
+
+// Also define donutChart as alias for donut (the existing function is donut)
+function donutChart(svgId, legendId, dataObj, colors){
+  donut(svgId, legendId, dataObj, colors);
+}
+
+
+
+// ─ Canvas: Line chart for daily trend ─────────────────────────────
+function drawLineChart(id, data){
+  const canvas = document.getElementById(id);
+  if(!canvas) return;
+  const W = canvas.offsetWidth || 400;
+  const H = canvas.height || 140;
+  canvas.width = W;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const keys = Object.keys(data);
+  const vals = keys.map(k=>data[k]);
+  if(!vals.length) return;
+  const maxV = Math.max(...vals, 1);
+  const PAD  = {t:12, r:12, b:28, l:28};
+  const cw   = W - PAD.l - PAD.r;
+  const ch   = H - PAD.t - PAD.b;
+  const xStep= keys.length>1 ? cw/(keys.length-1) : cw;
+  const pt   = (i) => ({x: PAD.l + i*xStep, y: PAD.t + ch*(1 - vals[i]/maxV)});
+
+  // Grid lines
+  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=1;
+  for(let g=0;g<=4;g++){
+    const y=PAD.t+ch*(g/4);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cw,y);ctx.stroke();
+  }
+
+  // Gradient fill under curve
+  const grad = ctx.createLinearGradient(0,PAD.t,0,PAD.t+ch);
+  grad.addColorStop(0,'rgba(79,142,247,.35)');
+  grad.addColorStop(1,'rgba(79,142,247,.02)');
+  ctx.beginPath();
+  ctx.moveTo(pt(0).x, PAD.t+ch);
+  vals.forEach((_,i)=>{
+    const p=pt(i);
+    if(i===0) ctx.lineTo(p.x,p.y);
+    else {
+      const pp=pt(i-1);
+      const cx=(pp.x+p.x)/2;
+      ctx.bezierCurveTo(cx,pp.y,cx,p.y,p.x,p.y);
+    }
+  });
+  ctx.lineTo(pt(vals.length-1).x, PAD.t+ch);
+  ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle='rgba(79,142,247,.9)';ctx.lineWidth=2;
+  vals.forEach((_,i)=>{
+    const p=pt(i);
+    if(i===0) ctx.moveTo(p.x,p.y);
+    else {
+      const pp=pt(i-1);
+      const cx=(pp.x+p.x)/2;
+      ctx.bezierCurveTo(cx,pp.y,cx,p.y,p.x,p.y);
+    }
+  });
+  ctx.stroke();
+
+  // Dots + values at every N-th point
+  const step = Math.max(1, Math.floor(keys.length/8));
+  ctx.fillStyle='var(--accent)';
+  vals.forEach((_,i)=>{
+    if(i%step===0||i===vals.length-1){
+      const p=pt(i);
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='9px Sora,sans-serif';ctx.textAlign='center';
+      ctx.fillText(vals[i],p.x,p.y-6);
+      // x-axis label
+      const lbl=keys[i].slice(5); // MM-DD
+      ctx.fillStyle='rgba(255,255,255,.35)';ctx.font='9px Sora,sans-serif';
+      ctx.fillText(lbl,p.x,H-PAD.b+12);
+      ctx.fillStyle='rgba(79,142,247,.9)';
+    }
+  });
+}
+
+// ─ Canvas: Weekly bar chart ───────────────────────────────────────
+function drawWeeklyChart(id, data){
+  const canvas = document.getElementById(id);
+  if(!canvas) return;
+  const W = canvas.offsetWidth || 400;
+  const H = canvas.height || 140;
+  canvas.width = W;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const order = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const vals  = order.map(d=>data[d]||0);
+  const maxV  = Math.max(...vals,1);
+  const PAD   = {t:12, r:16, b:28, l:28};
+  const cw    = W - PAD.l - PAD.r;
+  const ch    = H - PAD.t - PAD.b;
+  const barW  = cw/order.length;
+  const GAP   = 6;
+
+  order.forEach((day,i)=>{
+    const v    = vals[i];
+    const barH = (v/maxV)*ch;
+    const x    = PAD.l + i*barW + GAP/2;
+    const y    = PAD.t + ch - barH;
+    const pct  = v/maxV;
+    const col  = pct>0.6?'#4f8ef7':pct>0.3?'#7b5cf5':'#38d9b4';
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW-GAP, barH, 4);
+    ctx.fillStyle=col+'bb';ctx.fill();
+    // Label
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='10px Sora,sans-serif';ctx.textAlign='center';
+    ctx.fillText(day, x+(barW-GAP)/2, H-PAD.b+12);
+    if(v>0){
+      ctx.fillStyle='rgba(255,255,255,.75)';ctx.font='bold 10px Sora,sans-serif';
+      ctx.fillText(v, x+(barW-GAP)/2, y-4);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CALL LOGS — with full transcript viewer
+// ═══════════════════════════════════════════════════════════════════
+function renderCalls(){
+  // Stats header
+  const s = STATS;
+  setText('cl-total',  CALL_DATA.length || s.total_calls || '—');
+  setText('cl-booked', s.call_outcomes?.booked ?? '—');
+  setText('cl-inc',    (s.call_outcomes?.incomplete??0)+(s.call_outcomes?.dropped??0));
+  setText('cl-turns',  s.avg_turns ?? '—');
+
+  const q       = (document.getElementById('cl-q')?.value||'').toLowerCase();
+  const outcome = document.getElementById('cl-outcome')?.value||'';
+  const lang    = document.getElementById('cl-lang')?.value||'';
+
+  let data = CALL_DATA.filter(c => {
+    if(!q) return (!outcome || c.outcome===outcome) && (!lang || c.language===lang);
+    // Search across SID, patient name, doctor, AND the full conversation text
+    const turnText = (c.turns||[]).map(t=>t.text).join(' ').toLowerCase();
+    const search = `${c.sid} ${c.patient_name} ${c.doctor} ${turnText}`.toLowerCase();
+    return search.includes(q)
+      && (!outcome || c.outcome===outcome)
+      && (!lang    || c.language===lang);
+  });
+
+  setText('cl-count-lbl', `${data.length} calls — click any row to view full transcript`);
+
+  const list = document.getElementById('cl-list');
+  if(!list) return;
+
+  if(!data.length){
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📞</div>
+      <div class="empty-text">No calls match your filters</div></div>`;
+    return;
+  }
+
+  list.innerHTML = data.map((c, idx) => {
+    const turnsHTML = (c.turns||[]).map(t => {
+      const silence = t.text.includes('[silence]');
+      return `<div class="turn ${t.role}">
+        <div class="turn-who ${t.role}">${t.role==='adam'?'ADAM':'USER'}</div>
+        <div class="turn-text ${silence?'silence':''}">${esc(t.text)}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="tx-item" id="tx-${idx}" onclick="toggleTx(${idx})">
+      <div class="tx-head">
+        <span class="pill ${c.outcome}">${c.outcome}</span>
+        <span class="pill ${(c.language||'EN').toLowerCase()}">${c.language||'EN'}</span>
+        <span class="tx-sid" title="${c.sid}">${c.sid||'Unknown SID'}</span>
+        <span class="tx-date">${c.datetime||''}</span>
+      </div>
+      <div class="tx-info">
+        ${c.patient_name?`<span style="font-size:11.5px;color:var(--text2);">👤 ${esc(c.patient_name)}</span>`:''}
+        ${c.doctor?`<span style="font-size:11.5px;color:var(--text2);">👨‍⚕️ ${esc(c.doctor)}</span>`:''}
+        <span style="font-size:11px;color:var(--text3);">${c.duration_turns||0} turns</span>
+      </div>
+      <div class="tx-body" id="txb-${idx}">
+        <div class="tx-turns">${turnsHTML||'<div class="dim" style="padding:8px;">No dialogue recorded.</div>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTx(idx){
+  const item = document.getElementById(`tx-${idx}`);
+  const body = document.getElementById(`txb-${idx}`);
+  if(!item||!body) return;
+  const open = body.classList.toggle('open');
+  item.classList.toggle('open', open);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADD APPOINTMENT MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openAddModal(){
+  // Default date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('m-date').value = today;
+  document.getElementById('m-fname').value = '';
+  document.getElementById('m-lname').value = '';
+  document.getElementById('m-doctor').value = '';
+  document.getElementById('add-modal').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('add-modal').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') { closeModal(); closeConfirm(); closeReschedule(); } });
+document.getElementById('add-modal')?.addEventListener('click', e => {
+  if(e.target === document.getElementById('add-modal')) closeModal();
+});
+
+async function submitNewAppointment(){
+  const fn  = document.getElementById('m-fname').value.trim();
+  const ln  = document.getElementById('m-lname').value.trim();
+  const dob = document.getElementById('m-dob').value.trim();
+  const doc = document.getElementById('m-doctor').value;
+  const dt  = document.getElementById('m-date').value;
+  const tm  = document.getElementById('m-time').value;
+  if(!fn||!ln||!doc||!dt||!tm){ showToast('⚠️ Please fill in all fields'); return; }
+
+  // Format date nicely
+  const dateObj = new Date(dt + 'T00:00:00');
+  const dateFmt = dateObj.toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
+
+  const body = { first_name:fn, last_name:ln, dob:dob, doctor:doc, date:dateFmt, time:tm };
+
+  try {
+    const res = await fetch(`${API}/api/appointments`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if(d.ok){
+      closeModal();
+      await loadAll();
+      showToast(`✅ Appointment booked for ${fn} ${ln} with ${doc}`);
+    } else {
+      showToast('❌ Failed to book appointment');
+    }
+  } catch(e) {
+    // Backend offline — add locally
+    const newRow = { id: APT_DATA.length+1, first_name:fn, last_name:ln, dob:dob,
+      doctor:doc, date:dateFmt, time:tm,
+      booked_at: new Date().toISOString().slice(0,16).replace('T',' '),
+      department: DEPT_MAP[doc]||'general', status:'active' };
+    APT_DATA.push(newRow);
+    closeModal();
+    renderApt();
+    updateNavBadges();
+    showToast(`✅ Booked (offline mode) — ${fn} ${ln} with ${doc}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIRM DIALOG
+// ═══════════════════════════════════════════════════════════════════
+let _pendingAction = null;
+
+function showConfirm(icon, title, msg, okLabel, action){
+  document.getElementById('conf-icon').textContent  = icon;
+  document.getElementById('conf-title').textContent = title;
+  document.getElementById('conf-msg').textContent   = msg;
+  document.getElementById('conf-ok-btn').textContent= okLabel;
+  _pendingAction = action;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm(){
+  document.getElementById('confirm-overlay').classList.remove('open');
+  _pendingAction = null;
+}
+function confirmAction(){
+  const action = _pendingAction;
+  closeConfirm();
+  if(action) action();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELETE APPOINTMENT
+// ═══════════════════════════════════════════════════════════════════
+function askDelete(id, e){
+  e.stopPropagation();
+  const r = APT_DATA.find(x => x.id == id);
+  const name = r ? `${r.first_name||r.fn||''} ${r.last_name||r.ln||''}`.trim() : `ID ${id}`;
+  showConfirm('🗑️', 'Delete Appointment',
+    `Permanently delete the appointment for ${name}? This cannot be undone.`,
+    'Yes, Delete', () => doDelete(id));
+}
+
+async function doDelete(id){
+  try {
+    const res = await fetch(`${API}/api/appointments/${id}`, { method:'DELETE' });
+    const d = await res.json();
+    if(d.ok){
+      showToast(`🗑️ Appointment #${id} deleted`);
+      await loadAll(); // full re-sync so dashboard, stats, analytics all update
+    } else {
+      showToast('❌ Delete failed: ' + (d.error||'unknown'));
+    }
+  } catch(e){
+    // Offline fallback — remove locally and re-render
+    APT_DATA = APT_DATA.filter(r => r.id != id);
+    renderApt(); updateNavBadges();
+    showToast(`🗑️ Appointment deleted (offline mode)`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CANCEL APPOINTMENT
+// ═══════════════════════════════════════════════════════════════════
+function askCancel(id, e){
+  e.stopPropagation();
+  const r = APT_DATA.find(x => x.id == id);
+  const name = r ? `${r.first_name||r.fn||''} ${r.last_name||r.ln||''}`.trim() : `ID ${id}`;
+  showConfirm('✕', 'Cancel Appointment',
+    `Mark the appointment for ${name} as cancelled? The record will be kept but shown as cancelled.`,
+    'Yes, Cancel It', () => doCancel(id));
+}
+
+async function doCancel(id){
+  const idx = APT_DATA.findIndex(r => r.id == id);
+  if(idx === -1){ showToast('❌ Appointment not found'); return; }
+
+  // Update local state immediately so the UI reflects the change right away
+  APT_DATA[idx].status = 'cancelled';
+  renderApt();
+  showToast(`✕ Appointment #${id} marked as cancelled`);
+
+  // Persist to backend (the /cancel endpoint exists in admin_backend.py)
+  try {
+    const res = await fetch(`${API}/api/appointments/${id}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const d = await res.json();
+    if(d.ok){
+      await loadAll(); // full re-sync so dashboard and stats reflect the change
+    } else {
+      // Revert local change if backend rejected it
+      APT_DATA[idx].status = 'active';
+      renderApt();
+      showToast('❌ Cancel failed: ' + (d.error||'unknown'));
+    }
+  } catch(_){
+    // Backend offline — local change stays, will sync on next reload
+  }
+}
+
+function esc(s){ return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ═══════════════════════════════════════════════════════════════════
+// RESCHEDULE APPOINTMENT
+// ═══════════════════════════════════════════════════════════════════
+let _rescheduleId = null;
+
+function openReschedule(id, e){
+  if(e) e.stopPropagation();
+  const r = APT_DATA.find(x => x.id == id);
+  if(!r){ showToast('❌ Appointment not found'); return; }
+  _rescheduleId = id;
+
+  // Subtitle with patient name
+  const name = `${r.first_name||r.fn||''} ${r.last_name||r.ln||''}`.trim();
+  document.getElementById('rs-subtitle').textContent = `Patient: ${name} · ID #${id}`;
+
+  // Pre-fill doctor
+  const doc = r.doctor||r.doc||'';
+  document.getElementById('rs-doctor').value = doc;
+
+  // Pre-fill date — try to parse existing date string into YYYY-MM-DD for input[type=date]
+  const rawDate = r.date||'';
+  const parsed = parseDateToISO(rawDate);
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('rs-date').value = parsed || today;
+
+  // Pre-fill time
+  document.getElementById('rs-time').value = r.time||'9:00 AM';
+
+  // Show current info
+  document.getElementById('rs-current-info').innerHTML =
+    `<strong>${esc(doc)}</strong> &nbsp;·&nbsp; ${esc(rawDate)} &nbsp;·&nbsp; ${esc(r.time||'')}`;
+
+  document.getElementById('reschedule-modal').classList.add('open');
+}
+
+function closeReschedule(){
+  document.getElementById('reschedule-modal').classList.remove('open');
+  _rescheduleId = null;
+}
+
+document.getElementById('reschedule-modal')?.addEventListener('click', e => {
+  if(e.target === document.getElementById('reschedule-modal')) closeReschedule();
+});
+
+async function submitReschedule(){
+  const id  = _rescheduleId;
+  if(!id){ closeReschedule(); return; }
+
+  const doc = document.getElementById('rs-doctor').value;
+  const dt  = document.getElementById('rs-date').value;
+  const tm  = document.getElementById('rs-time').value;
+
+  if(!doc||!dt||!tm){ showToast('⚠️ Please fill in all fields'); return; }
+
+  const dateObj = new Date(dt + 'T00:00:00');
+  const dateFmt = dateObj.toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
+
+  // Optimistic local update
+  const idx = APT_DATA.findIndex(r => r.id == id);
+  const oldDoc  = idx>=0 ? (APT_DATA[idx].doctor||APT_DATA[idx].doc) : '';
+  const oldDate = idx>=0 ? APT_DATA[idx].date : '';
+  const oldTime = idx>=0 ? APT_DATA[idx].time : '';
+
+  if(idx>=0){
+    APT_DATA[idx].doctor     = doc;
+    APT_DATA[idx].doc        = doc;
+    APT_DATA[idx].date       = dateFmt;
+    APT_DATA[idx].time       = tm;
+    APT_DATA[idx].department = DEPT_MAP[doc]||'general';
+    APT_DATA[idx].status     = 'active';
+  }
+  closeReschedule();
+  renderApt();
+  showToast(`📅 Rescheduled #${id} → ${doc} · ${dateFmt} · ${tm}`);
+
+  try {
+    const res = await fetch(`${API}/api/appointments/${id}/reschedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doctor: doc, date: dateFmt, time: tm })
+    });
+    const d = await res.json();
+    if(d.ok){
+      await loadAll();
+    } else {
+      // Revert on failure
+      if(idx>=0){ APT_DATA[idx].doctor=oldDoc; APT_DATA[idx].date=oldDate; APT_DATA[idx].time=oldTime; }
+      renderApt();
+      showToast('❌ Reschedule failed: ' + (d.error||'unknown'));
+    }
+  } catch(_){
+    // Backend offline — local change stays
+  }
+}
+
+// Parse varied date strings into YYYY-MM-DD for the date input
+function parseDateToISO(s){
+  if(!s) return '';
+  // Already ISO
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // dd/mm/yyyy or d/mm/yyyy with spaces
+  const slash = s.replace(/\s/g,'').match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(slash) return `${slash[3]}-${slash[2].padStart(2,'0')}-${slash[1].padStart(2,'0')}`;
+  // "2 April 2026" or "28th March 2026"
+  const d = new Date(s.replace(/(\d+)(st|nd|rd|th)/,'$1'));
+  if(!isNaN(d)) return d.toISOString().split('T')[0];
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, dur=2500){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.style.display='none', dur);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EMBEDDED FALLBACK DATA (used when backend is offline)
+// ═══════════════════════════════════════════════════════════════════
+const EMBEDDED_APTS = [
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"01/04/2026",time:"9:00 AM",at:"2026-03-23 22:16",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"2 April 2026",time:"8:00 AM",at:"2026-03-24 11:38",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"1 April",time:"9:00 AM",at:"2026-03-24 15:40",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"1 April 2026",time:"9:00 AM",at:"2026-03-25 15:11",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"19 April 2026",time:"9:00 AM",at:"2026-03-26 00:22",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"27 March 2026",time:"8:00 AM",at:"2026-03-26 12:46",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"27 March 2026",time:"10:00 AM",at:"2026-03-26 16:12",department:"neurology"},
+  {fn:"Ehishek",ln:"Soni",doc:"Dr Shah",date:"28 March 2026",time:"12:00 PM",at:"2026-03-26 16:24",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Patel",date:"27 March 2026",time:"9:00 AM",at:"2026-03-26 22:26",department:"gastro"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Patel",date:"27 March 2026",time:"12:00 PM",at:"2026-03-26 22:31",department:"gastro"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"29 March 2026",time:"8:00 AM",at:"2026-03-27 00:10",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"28 March 2026",time:"8:00 AM",at:"2026-03-27 16:54",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"28 March 2026",time:"6:00 PM",at:"2026-03-27 17:13",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Verma",date:"28 March 2026",time:"5:00 PM",at:"2026-03-27 17:17",department:"gastro"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"28 March 2026",time:"9:00 AM",at:"2026-03-27 18:33",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Patel",date:"28th March 2026",time:"8:00 AM",at:"2026-03-27 18:36",department:"gastro"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"2 April 2026",time:"6:00 PM",at:"2026-04-01 15:33",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"02 April 2026",time:"9:00 AM",at:"2026-04-01 15:36",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"3 April 2026",time:"9:00 AM",at:"2026-04-01 15:40",department:"neurology"},
+  {fn:"Soni",ln:"Abhishek",doc:"Dr Verma",date:"Third April 2026",time:"9:00 AM",at:"2026-04-01 15:44",department:"gastro"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"10 April",time:"11:00 AM",at:"2026-04-09 15:37",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Reddy",date:"11 /04/2026",time:"8:00 AM",at:"2026-04-10 00:10",department:"neurology"},
+  {fn:"Abhishek",ln:"Soni",doc:"Dr Shah",date:"11/04/2026",time:"9:00 AM",at:"2026-04-10 00:12",department:"neurology"},
+];
+
+const EMBEDDED_CALLS = [
+  {sid:"CAf2f75c5e161245b7944ee8588c13f063",datetime:"2026-04-09 16:46:11",language:"EN",outcome:"booked",patient_name:"Abhishek Soni",doctor:"Dr Reddy",duration_turns:16,
+   turns:[{role:"adam",text:"Hello, welcome to Anand Hospital. This is ADAM. Would you prefer to speak in English or Hindi?"},{role:"user",text:"[chose EN]"},{role:"adam",text:"Great, we will continue in English. How may I assist you today?"},{role:"user",text:"I want to book an appointment."},{role:"adam",text:"Of course. What is your first name please?"},{role:"user",text:"B6."},{role:"adam",text:"Thank you, B6.. Could you please spell your first name letter by letter?"},{role:"user",text:"A b h. I s h, e k."},{role:"adam",text:"Thank you, Abhishek. Now may I have your last name please?"},{role:"user",text:"Sony."},{role:"adam",text:"Got it. Could you now spell your last name letter by letter?"},{role:"user",text:"S o, n. I"},{role:"adam",text:"Thank you, Abhishek Soni. What symptoms are you experiencing?"},{role:"user",text:"Headache."},{role:"adam",text:"For headache, I can recommend Dr Shah or Dr Reddy. Please say 1 for Dr Shah or 2 for Dr Reddy."},{role:"user",text:"2 Dr. Ready 2. Dr. Ready"},{role:"adam",text:"Noted. Which date would you like to visit? Please say a date."},{role:"user",text:"9 10."},{role:"adam",text:"Your appointment with Dr Reddy on 9 10 at 10:00 AM is confirmed. We look forward to seeing you, Abhishek."},{role:"adam",text:"Thank you for calling Anand Hospital. Goodbye and take care!"}]},
+  {sid:"CA1564393b953c213f27d38fa826226378",datetime:"2026-04-01 15:40:55",language:"HI",outcome:"booked",patient_name:"Abhishek Soni",doctor:"Dr Reddy",duration_turns:18,
+   turns:[{role:"adam",text:"Hello, welcome to Anand Hospital. This is ADAM. Would you prefer to speak in English or Hindi? Kripya English ya Hindi chunein."},{role:"user",text:"[chose HI]"},{role:"adam",text:"Shukriya. Hum Hindi mein baat karte hain. Aapki kaise madad kar sakta hoon?"},{role:"user",text:"Appointment."},{role:"adam",text:"Bilkul. Kya aap apna pehla naam bata sakte hain?"},{role:"user",text:"A b h. I s h, e k."},{role:"adam",text:"Shukriya, Abhishek. Ab kripya apna aakhiri naam batayein."},{role:"user",text:"Stony."},{role:"adam",text:"Theek hai. Ab apna aakhiri naam ek ek akshar mein spell karein."},{role:"user",text:"S o, n. I"},{role:"adam",text:"Shukriya, Abhishek Soni. Aapko kya takleef ho rahi hai?"},{role:"user",text:"Sir, dard."},{role:"adam",text:"sar dard ke liye main Dr Shah ya Dr Reddy ki salah doonga."},{role:"user",text:"[silence]"},{role:"adam",text:"Dr Shah ke liye 1 kahein, ya Dr Reddy ke liye 2 kahein."},{role:"user",text:"2, Dr. Ready"},{role:"adam",text:"Aapki appointment Dr Reddy ke saath 3 April 2026 ko 9:00 AM baje confirm ho gayi. Shukriya, Abhishek."},{role:"adam",text:"Dhanyavaad. Anand Hospital mein aapka swagat rahega. Alvida!"}]},
+  {sid:"CAd77e5115855cf8c7e10679a60134a6b3",datetime:"2026-03-20 14:06:35",language:"EN",outcome:"booked",patient_name:"Abhishek",doctor:"Dr Reddy",duration_turns:14,
+   turns:[{role:"adam",text:"Hello, thank you for calling Anand Hospital. This is ADAM. How may I assist you today?"},{role:"user",text:"Book, an appointment."},{role:"adam",text:"I'm sorry, I didn't catch that. Could you please repeat?"},{role:"user",text:"I want to book an appointment."},{role:"adam",text:"Thank you, Abhishek. What symptoms are you experiencing?"},{role:"user",text:"Headache."},{role:"adam",text:"I suggest Dr Shah or Dr Reddy for head pain."},{role:"user",text:"2, Dr. Ready"},{role:"adam",text:"Noted, Dr Reddy it is. Which day would you like to visit?"},{role:"user",text:"21st, March 2026."},{role:"adam",text:"Available times: 8 PM works?"},{role:"user",text:"8:00 p.m."},{role:"adam",text:"Your appointment with Dr Reddy at 8:00 PM is confirmed."},{role:"adam",text:"Thank you for calling Anand Hospital. Goodbye!"}]},
+  {sid:"CAe1fc4e6a936ef1e1d3b4fef62a7e5409",datetime:"2026-03-20 13:29:15",language:"EN",outcome:"incomplete",patient_name:"Abhishek",doctor:"Dr Shah",duration_turns:12,
+   turns:[{role:"adam",text:"Hello, thank you for calling Anand Hospital. This is ADAM. How may I assist you today?"},{role:"user",text:"Want to book an appointment."},{role:"adam",text:"Of course, I'd be happy to help. May I have your first name please?"},{role:"user",text:"I'll be sick."},{role:"adam",text:"Thank you, Be. Could you please spell your first name letter by letter to confirm?"},{role:"user",text:"A b h. I s h, e k."},{role:"adam",text:"Thank you, Abhishek. May I have your last name please?"},{role:"user",text:"Sony."},{role:"adam",text:"Thank you. What symptoms are you experiencing?"},{role:"user",text:"Headache."},{role:"adam",text:"For head pain, I can recommend Dr Shah or Dr Reddy."},{role:"user",text:"Plus 1."}]},
+  {sid:"CAd1e6c1fd91f28ed50fdc4d682bc1b5a1",datetime:"2026-03-20 15:06:57",language:"EN",outcome:"booked",patient_name:"Bhishek Soni",doctor:"Dr Reddy",duration_turns:14,
+   turns:[{role:"adam",text:"Hello, thank you for calling Anand Hospital. This is ADAM. How may I assist you today?"},{role:"user",text:"I want to book an appointment."},{role:"adam",text:"Thank you. Bhishek Soni. What symptoms are you experiencing?"},{role:"user",text:"Headache."},{role:"adam",text:"For head pain, I can recommend Dr Shah or Dr Reddy."},{role:"user",text:"2, Dr. Ready"},{role:"adam",text:"Noted, Dr Reddy it is."},{role:"user",text:"21st March."},{role:"adam",text:"9 a.m. works?"},{role:"user",text:"9 a.m."},{role:"adam",text:"Your appointment: Dr Reddy, Thursday at 9:00 AM. Shall I confirm?"},{role:"user",text:"Yes."},{role:"adam",text:"Your appointment is confirmed with Dr Reddy. Thank you for calling."},{role:"adam",text:"Goodbye!"}]},
+];
+
+function buildLocalStats(){
+  const apts = EMBEDDED_APTS;
+  const calls = EMBEDDED_CALLS;
+  const docC={}, timeC={}, deptC={}, dayC={}, patC={};
+  const docStatus={};
+  const weeklyC={Mon:0,Tue:0,Wed:0,Thu:0,Fri:0,Sat:0,Sun:0};
+  const hourlyC={};
+  apts.forEach(r=>{
+    const d=r.doc||r.doctor||''; const t=r.time||''; const dp=r.department||''; const at=r.at||r.booked_at||'';
+    docC[d]=(docC[d]||0)+1; timeC[t]=(timeC[t]||0)+1; deptC[dp]=(deptC[dp]||0)+1;
+    const day=at.split(' ')[0]; if(day) dayC[day]=(dayC[day]||0)+1;
+    const k=`${r.fn||r.first_name||''} ${r.ln||r.last_name||''}`.trim();
+    patC[k]=(patC[k]||0)+1;
+    if(!docStatus[d]) docStatus[d]={total:0,active:0,cancelled:0};
+    docStatus[d].total++;
+    const st=r.status||'active';
+    if(st==='cancelled') docStatus[d].cancelled++; else docStatus[d].active++;
+    try{
+      const wd=new Date(at).toLocaleString('en',{weekday:'short'});
+      if(weeklyC[wd]!==undefined) weeklyC[wd]++;
+    }catch(_){}
+    if(at.length>=16){const hr=parseInt(at.split(' ')[1]);if(!isNaN(hr)) hourlyC[hr]=(hourlyC[hr]||0)+1;}
+  });
+  const oc={booked:0,incomplete:0,dropped:0,cancelled:0};
+  const lc={EN:0,HI:0};
+  const turnsByOutcome={};
+  calls.forEach(c=>{
+    oc[c.outcome]=(oc[c.outcome]||0)+1;
+    lc[c.language]=(lc[c.language]||0)+1;
+    if(!turnsByOutcome[c.outcome]) turnsByOutcome[c.outcome]=[];
+    turnsByOutcome[c.outcome].push(c.duration_turns);
+  });
+  const total=apts.length;
+  const cancelled=Object.values(docStatus).reduce((s,v)=>s+v.cancelled,0);
+  const active=total-cancelled;
+  const cr=total?Math.round(cancelled/total*100):0;
+  const crCall=calls.length?Math.round(oc.booked/calls.length*100):0;
+  const activeDays=Object.keys(dayC).length||1;
+  const docStats={};
+  for(const [doc,s] of Object.entries(docStatus)){
+    const rate=s.total?Math.round(s.cancelled/s.total*100):0;
+    docStats[doc]={...s, cancel_rate:rate, efficiency_score:Math.max(0,100-rate*1.5), department:DEPT_MAP[doc]||'general'};
+  }
+  const topPatients=Object.entries(patC).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,count])=>({name,count}));
+  const visitDist={};
+  Object.values(patC).forEach(v=>{const b=String(Math.min(v,5));visitDist[b]=(visitDist[b]||0)+1;});
+  const avgTurnsByOutcome={};
+  for(const [k,v] of Object.entries(turnsByOutcome)) avgTurnsByOutcome[k]=+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1);
+  const hourlyStr={};
+  for(let h=8;h<=20;h++) hourlyStr[String(h)]=hourlyC[h]||0;
+
+  // Simple forecast (flat avg)
+  const sortedDays=Object.keys(dayC).filter(d=>d!=='unknown').sort();
+  const recentVals=sortedDays.slice(-7).map(d=>dayC[d]);
+  const avgFc=recentVals.length?+(recentVals.reduce((a,b)=>a+b,0)/recentVals.length).toFixed(1):0;
+  const forecast={};
+  try{
+    const lastD=new Date(sortedDays[sortedDays.length-1]||new Date());
+    for(let j=1;j<=7;j++){
+      const fd=new Date(lastD); fd.setDate(fd.getDate()+j);
+      forecast[fd.toISOString().slice(0,10)]=avgFc;
+    }
+  }catch(_){}
+
+  return {
+    total, active_count:active, cancelled_count:cancelled,
+    cancel_rate:cr, conversion_rate:crCall,
+    unique_patients:new Set(apts.map(r=>`${r.fn||r.first_name} ${r.ln||r.last_name}`)).size,
+    top_doctor:Object.entries(docC).sort((a,b)=>b[1]-a[1])[0]?.[0]||'',
+    doc_counts:docC, time_counts:timeC, dept_counts:deptC, day_counts:dayC, patient_counts:patC,
+    avg_per_day:+(total/activeDays).toFixed(1),
+    peak_time:Object.entries(timeC).sort((a,b)=>b[1]-a[1])[0]?.[0]||'',
+    top_dept:Object.entries(deptC).sort((a,b)=>b[1]-a[1])[0]?.[0]||'',
+    repeat_patients:Object.values(patC).filter(v=>v>1).length,
+    total_calls:calls.length, call_outcomes:oc, lang_counts:lc,
+    avg_turns:+(calls.reduce((s,c)=>s+c.duration_turns,0)/(calls.length||1)).toFixed(1),
+    doctor_stats:docStats, top_patients:topPatients,
+    weekly_pattern:weeklyC,
+    daily_trend:Object.fromEntries(sortedDays.slice(-30).map(d=>[d,dayC[d]])),
+    forecast, visit_distribution:visitDist,
+    avg_turns_by_outcome:avgTurnsByOutcome,
+    hourly_counts:hourlyStr,
+    funnel:{
+      total_calls:calls.length,
+      reached_booking:calls.length-(oc.dropped||0),
+      completed:calls.length-(oc.dropped||0)-(oc.incomplete||0),
+      booked:oc.booked||0,
+      conversion_rate:crCall,
+    },
+    heatmap:{},
+  };
+}
+
+</script>
+</body>
+</html>
+  
