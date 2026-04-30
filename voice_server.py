@@ -1,15 +1,27 @@
 # voice_server.py final
 
 import json
+import logging
 import os
 from datetime import datetime
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from twilio.twiml.voice_response import VoiceResponse, Gather
 
 from hospital_agent import HospitalAgent
 import llm_interface as llm
 
 app = Flask(__name__)
+
+# ── Suppress noisy polling-endpoint logs from werkzeug ────────────────────────
+class _SilencePollingFilter(logging.Filter):
+    """Drop GET /api/active_sessions log lines so the terminal stays clean."""
+    _MUTED = {"/api/active_sessions", "/api/active-sessions"}
+    def filter(self, record):
+        msg = record.getMessage()
+        return not any(path in msg for path in self._MUTED)
+
+logging.getLogger("werkzeug").addFilter(_SilencePollingFilter())
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 call_sessions: dict = {}   # call_sid → {"lang": "en"/"hi", "done": bool}
@@ -209,6 +221,25 @@ def _read_sidecar() -> str:
             return json.load(f).get("patient", "").strip()
     except Exception:
         return ""
+
+
+@app.route("/api/active_sessions", methods=["GET"])
+@app.route("/api/active-sessions",  methods=["GET"])
+def active_sessions():
+    """Return a JSON list of currently active voice calls for the admin dashboard."""
+    sessions = []
+    for sid, info in call_sessions.items():
+        agent = agents.get(sid)
+        sessions.append({
+            "call_sid":   sid,
+            "lang":       info.get("lang", ""),
+            "done":       info.get("done", False),
+            "from":       info.get("from", ""),
+            "state":      getattr(agent, "state", ""),
+            "first_name": (agent.data.get("first_name") or "") if agent else "",
+            "last_name":  (agent.data.get("last_name")  or "") if agent else "",
+        })
+    return jsonify({"active_sessions": sessions, "count": len(sessions)})
 
 
 @app.route("/voice", methods=["GET", "POST"])
