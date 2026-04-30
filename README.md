@@ -170,8 +170,6 @@ Language switching	Dynamic language context
 
 
 
-#create your account in twilio and ngrok 
-replace the details with your account details
 
 
 
@@ -181,3 +179,7 @@ WhatsApp integration
 Doctor availability API
 Live analytics dashboard (charts)
 Deploy on cloud (AWS/GCP)
+
+
+#create your account in twilio and ngrok 
+replace the details with your account details
