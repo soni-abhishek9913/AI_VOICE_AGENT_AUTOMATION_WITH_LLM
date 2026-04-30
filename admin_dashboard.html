@@ -519,7 +519,7 @@ tbody tr.row-selected{background:rgba(79,142,247,.09)!important;
       <div class="update-notice" id="update-notice">⟳ New data available — refreshed</div>
     </div>
     <div class="topbar-right">
-      <span class="live-pill"><span class="live-dot"></span>Live</span>
+      <span class="live-pill"><span class="live-dot"></span><span id="active-sessions-lbl">Live</span></span>
       <button class="icon-btn" id="refreshBtn" onclick="refreshDashboard()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
@@ -1313,6 +1313,14 @@ function startPolling(){
         setTimeout(() => notice.style.display='none', 3000);
         showToast('⟳ New call data received');
       }
+      if(d.active_sessions !== undefined) {
+        const lbl = document.getElementById('active-sessions-lbl');
+        if(lbl) {
+            lbl.textContent = d.active_sessions > 0 ? `${d.active_sessions} Active Session${d.active_sessions > 1 ? 's' : ''}` : 'Live';
+            const pill = lbl.closest('.live-pill');
+            if(pill) pill.style.background = d.active_sessions > 0 ? 'rgba(56,217,180,.15)' : 'rgba(56,217,180,.08)';
+        }
+      }
     } catch(e){}
   }, 5000);
 }
@@ -1544,23 +1552,42 @@ function renderApt(){
   setText('apt-count-lbl', `Showing ${data.length} of ${APT_DATA.length} appointments`);
   const tbody = document.getElementById('apt-tbody');
   if(!tbody) return;
+  
+  // Conflict detection
+  const seen = {};
+  const conflicts = new Set();
+  APT_DATA.forEach(r => {
+    if(r.status === 'cancelled') return;
+    const key = `${r.doctor||r.doc}|${r.date}|${r.time}`;
+    if(seen[key]) { conflicts.add(r.id); conflicts.add(seen[key]); }
+    else seen[key] = r.id;
+  });
+
   // Remember selected IDs across re-renders
   const prevSelected = getSelectedIds();
   tbody.innerHTML = data.map((r,i)=>{
     const d  = r.doctor||r.doc||'';
     const dp = r.department||DEPT_MAP[d]||'general';
-    // Use the real backend id when present; otherwise stamp a stable index-based id
     if(r.id == null) r.id = i + 1;
     const id = r.id;
     const wasChecked = prevSelected.has(id);
     const cancelled = r.status === 'cancelled';
+    const isConflict = conflicts.has(id);
     const statusPill = cancelled
       ? `<span class="status-pill cancelled">Cancelled</span>`
       : `<span class="status-pill active">Active</span>`;
+    const conflictWarn = (!cancelled && isConflict) ? `<span title="Double Booking Conflict!" style="color:var(--danger);margin-left:6px;cursor:help;font-size:14px">⚠️</span>` : '';
     const cancelBtn = cancelled
       ? `<button class="act-btn cancel" disabled>Cancelled</button>`
       : `<button class="act-btn cancel" onclick="askCancel(${id},event)">✕ Cancel</button>`;
-    return `<tr data-id="${id}" class="${wasChecked?' row-selected':''}" style="${cancelled?'opacity:.62':''}">
+    
+    let rowStyle = cancelled ? 'opacity:.62' : '';
+    let rowClass = wasChecked ? ' row-selected' : '';
+    if(isConflict && !cancelled) {
+        rowStyle = 'background:rgba(247,95,95,.08); outline:1px solid rgba(247,95,95,.3); outline-offset:-1px;';
+    }
+
+    return `<tr data-id="${id}" class="${rowClass}" style="${rowStyle}">
       <td class="cb-col" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-cb" data-id="${id}"
           ${wasChecked?'checked':''}
@@ -1573,7 +1600,7 @@ function renderApt(){
       <td>${esc(d)}</td>
       <td><span class="pill ${dp}">${dp}</span></td>
       <td>${esc(r.date||'')}</td>
-      <td class="mono">${esc(r.time||'')}</td>
+      <td class="mono">${esc(r.time||'')}${conflictWarn}</td>
       <td class="dim">${esc(r.booked_at||r.at||'')}</td>
       <td>${statusPill}</td>
       <td class="actions">${cancelBtn}<button class="act-btn reschedule" onclick="openReschedule(${id},event)">📅 Reschedule</button><button class="act-btn delete" onclick="askDelete(${id},event)">🗑 Delete</button></td>
