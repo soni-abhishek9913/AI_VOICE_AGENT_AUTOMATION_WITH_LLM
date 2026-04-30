@@ -3,7 +3,7 @@ import json
 from urllib.parse import quote
 from twilio.rest import Client
 
-
+#your twilio Account detail
 ACCOUNT_SID    = ""
 AUTH_TOKEN     = ""
 TWILIO_NUMBER  = ""
