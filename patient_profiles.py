@@ -1,20 +1,3 @@
-"""
-patient_profiles.py
-====================
-Manages persistent caller profiles so returning patients are greeted
-by name and skip the name-spelling steps.
-
-Storage: profiles.json (key = E.164 phone number)
-Each entry:
-  {
-    "first_name": "Rahul",
-    "last_name":  "Sharma",
-    "dob":        "21/03/1990",   # DD/MM/YYYY (may be empty for old records)
-    "bookings":   3,
-    "last_call":  "2026-04-18T02:00:00"
-  }
-"""
-
 import json
 import os
 import re
