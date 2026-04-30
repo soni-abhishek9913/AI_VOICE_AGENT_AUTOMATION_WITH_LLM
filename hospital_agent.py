@@ -1,4 +1,4 @@
-
+#hospital_agent.py
 import csv
 import os
 import re
@@ -557,21 +557,27 @@ def save_appointment(data: dict):
         "active",                   data.get("dob", "")
     ]
 
-    if needs_repair:
-        # Rewrite the whole file with a proper header + old rows + new row
-        with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(FIELDNAMES)
-            writer.writerows(existing_rows)
-            writer.writerow(new_row)
-    else:
-        write_header = (not os.path.exists(CSV_FILE) or
-                        os.stat(CSV_FILE).st_size == 0)
-        with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            if write_header:
+    try:
+        if needs_repair:
+            # Rewrite the whole file with a proper header + old rows + new row
+            with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
                 writer.writerow(FIELDNAMES)
-            writer.writerow(new_row)
+                writer.writerows(existing_rows)
+                writer.writerow(new_row)
+        else:
+            write_header = (not os.path.exists(CSV_FILE) or
+                            os.stat(CSV_FILE).st_size == 0)
+            with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                if write_header:
+                    writer.writerow(FIELDNAMES)
+                writer.writerow(new_row)
+    except PermissionError as e:
+        print(f"\n[CRITICAL ERROR] Could not save appointment to {CSV_FILE}!")
+        print(f"-> The file is currently OPEN IN ANOTHER PROGRAM (like Microsoft Excel).")
+        print(f"-> PLEASE CLOSE EXCEL and try booking the appointment again.\n")
+        raise e
 
 
 def cancel_appointment(fname: str, lname: str) -> bool:
@@ -745,6 +751,7 @@ class HospitalAgent:
         self._tentative_profile         = None
         self._stored_profile_firstname  = ""
         self._stored_profile_lastname   = ""
+        self._csv_matches               = []   # holds CSV rows during VERIFY_CSV_DOB
         llm.reset_history(call_id)
 
     def set_language(self, lang: str):
@@ -816,6 +823,10 @@ class HospitalAgent:
             return ("Apni janm tithi batayein. Jaise: 21 March 1990."
                     if hi else
                     "Please say your date of birth to verify. For example: 21 March 1990.")
+        if s == "VERIFY_CSV_DOB":
+            return ("Pehchaan ke liye apni janm tithi batayein. Jaise: 21 March 1990."
+                    if hi else
+                    "To confirm your identity, please say your date of birth. For example: 21 March 1990.")
         if s == "GREET_RETURNING":
             return ("Kya appointment book karni hai, reschedule karni hai, ya cancel?"
                     if hi else
@@ -932,12 +943,207 @@ class HospitalAgent:
         return False
 
     # ════════════════════════════════════════════════════════════════════
+    #  Correction helpers
+    # ════════════════════════════════════════════════════════════════════
+
+    # Patterns that signal a name correction mid-flow
+    _NAME_CORRECTION_PATS = [
+        r"(?:wait|actually|hold on|no)[,\s]+(?:my name is|i am|i'm|naam hai)\s+([a-z]+)",
+        r"(?:my name is|i am|i'm|naam hai|naam)\s+([a-z]+)\s*$",
+        r"(?:call me|it's|its)\s+([a-z]+)\s*$",
+    ]
+
+    def _check_name_correction(self, text: str) -> str:
+        """Return corrected first name if user says 'wait my name is X' etc., else empty string."""
+        t = text.lower().strip()
+        import re as _re
+        for pat in self._NAME_CORRECTION_PATS:
+            m = _re.search(pat, t)
+            if m:
+                candidate = m.group(1).strip()
+                if _is_clean_name(candidate):
+                    return candidate.title()
+        return ""
+
+    def _find_in_appointments(self, first_name: str, last_name: str) -> dict:
+        """
+        Search appointments.csv for a patient by first + last name (case-insensitive).
+        Returns the FIRST matching row dict (with DOB if present) or None.
+        Only considers active (non-cancelled) appointments.
+        """
+        matches = self._find_all_in_appointments(first_name, last_name)
+        return matches[0] if matches else None
+
+    def _find_all_in_appointments(self, first_name: str, last_name: str) -> list:
+        """
+        Return ALL active appointment rows matching first + last name (case-insensitive).
+        Used to detect duplicate names and enforce DOB verification.
+        """
+        fn_lower = first_name.strip().lower()
+        ln_lower = last_name.strip().lower()
+        results = []
+        for row in _read_appointments():
+            row_fn = (row.get("First Name", row.get("first_name", "")) or "").strip().lower()
+            row_ln = (row.get("Last Name",  row.get("last_name",  "")) or "").strip().lower()
+            row_status = (row.get("Status", "active") or "active").strip().lower()
+            if row_status == "cancelled":
+                continue
+            if row_fn == fn_lower and row_ln == ln_lower:
+                results.append(row)
+        return results
+
+    def _try_date_correction(self, text: str) -> str:
+        """
+        Return a formatted date if user says 'actually make it Thursday' /
+        'change it to 25 April' / 'make it next Monday' etc.
+        Returns empty string if no correction detected.
+        """
+        import re as _re
+        t = text.lower().strip()
+        # Trigger words that indicate a date/day change request
+        _triggers = [
+            r"(?:actually|make it|change it to|change to|how about|let's do|let us do|"  
+            r"reschedule to|move to|shift to|book for)\s+(.+)",
+            r"(?:thursday|friday|monday|tuesday|wednesday|saturday|sunday)",
+        ]
+        # Day-of-week → next occurrence mapping
+        _DOW = {
+            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+            "friday": 4, "saturday": 5, "sunday": 6,
+        }
+        from datetime import datetime as _dt, timedelta as _td
+        # Check for day-of-week mention
+        for day_name, dow in _DOW.items():
+            if day_name in t:
+                today = _dt.now()
+                days_ahead = (dow - today.weekday() + 7) % 7
+                if days_ahead == 0:
+                    days_ahead = 7  # next week if same day
+                target = today + _td(days=days_ahead)
+                return target.strftime("%d %B %Y")
+        # Check for explicit date after trigger word
+        for pat in _triggers[:1]:
+            m = _re.search(pat, t)
+            if m:
+                candidate = m.group(1).strip()
+                try:
+                    fmt = format_date(candidate)
+                    if is_valid_date(fmt):
+                        return fmt
+                except Exception:
+                    pass
+        return ""
+
+    def _try_time_correction(self, text: str) -> str:
+        """
+        Return a normalized time string if user says 'actually at 10 am' /
+        'make it 5 pm' / 'change to morning' etc.
+        Returns empty string if nothing found.
+        """
+        import re as _re
+        t = text.lower().strip()
+        _triggers = [
+            r"(?:actually|make it|change it to|change to|how about|at)\s+(.+)",
+        ]
+        for pat in _triggers:
+            m = _re.search(pat, t)
+            if m:
+                candidate = m.group(1).strip()
+                result = normalize_time(candidate)
+                if result:
+                    return result
+        # Also try plain time parse on the whole text
+        result = normalize_time(text)
+        if result:
+            return result
+        return ""
+
+    # ════════════════════════════════════════════════════════════════════
     #  handle() — main dispatcher
     # ════════════════════════════════════════════════════════════════════
 
     def handle(self, user_input: str) -> str:
         llm.add_user_turn(user_input)
         text = user_input.lower().strip()
+
+        # ── Universal mid-flow correction handler ─────────────────────────
+        # Intercepts unexpected corrections at any state AFTER language is set
+        if self.state not in (
+            "CHOOSE_LANG", "START", "ASK_FIRST", "SPELL_FIRST",
+            "CANCEL_FIRST", "CANCEL_SPELL_FIRST", "CANCEL_LAST", "CANCEL_SPELL_LAST",
+            "RESCHEDULE_FIRST", "RESCHEDULE_SPELL_FIRST",
+            "RESCHEDULE_LAST", "RESCHEDULE_SPELL_LAST",
+            "VERIFY_CSV_DOB", "VERIFY_PROFILE_DOB",
+        ) and self.lang:
+            # 1. Name correction: "wait my name is Abhishek"
+            name_fix = self._check_name_correction(user_input)
+            if name_fix and self.state in (
+                "ASK_LAST", "SPELL_LAST", "ASK_DOB", "VERIFY_PROFILE_DOB",
+                "ASK_SYMPTOM", "SELECT_DOCTOR", "ASK_DATE", "ASK_TIME", "CONFIRM",
+                "GREET_RETURNING",
+            ):
+                # Restart booking from first name
+                old_state = self.state
+                self.data["first_name"] = name_fix
+                self.data["last_name"]  = None
+                self.data["dob"]        = None
+                self.data["doctor"]     = None
+                self.data["date"]       = None
+                self.data["time"]       = None
+                self._profile_loaded    = False
+                self._new_patient       = True
+                self.state = "SPELL_FIRST"
+                print(f"  [correction] Name corrected to {name_fix!r} from state={old_state}")
+                hint = self._t(
+                    f"No problem! Let me update that. Could you spell {name_fix} letter by letter to confirm?",
+                    f"Bilkul! {name_fix} — kripya ek ek akshar mein spell karein confirm karne ke liye."
+                )
+                return self._gen(f"mid-flow name correction to {name_fix}", hint)
+
+            # 2. Date correction: "actually make it Thursday" / "change to 25 April"
+            if self.state in ("ASK_DATE", "ASK_TIME", "CONFIRM", "RESCHEDULE_DATE", "RESCHEDULE_TIME", "RESCHEDULE_CONFIRM"):
+                date_fix = self._try_date_correction(user_input)
+                if date_fix and self.state in ("ASK_TIME", "CONFIRM"):
+                    if not is_past_date(date_fix):
+                        self.data["date"] = date_fix
+                        self.data["time"] = None
+                        self.state = "ASK_TIME"
+                        avail = get_available_slots(self.data.get("doctor", ""), date_fix)
+                        slots_str = ", ".join(avail) if avail else "no slots available"
+                        print(f"  [correction] Date changed to {date_fix!r}")
+                        hint = self._t(
+                            f"No problem! I have updated the date to {date_fix}. "
+                            f"Please choose a time. Available slots: {slots_str}.",
+                            f"Bilkul! Tarikh {date_fix} kar di. "
+                            f"Kaunsa samay chahiye? Upalabdh slots: {slots_str}."
+                        )
+                        return self._gen(f"mid-flow date correction to {date_fix}", hint)
+
+            # 3. Time correction: "make it at 10 am" / "actually 5 pm"
+            if self.state in ("ASK_TIME", "CONFIRM"):
+                time_fix = self._try_time_correction(user_input)
+                if time_fix and time_fix in AVAILABLE_SLOTS:
+                    self.data["time"] = time_fix
+                    # Check availability
+                    if not is_slot_available(self.data):
+                        self.data["time"] = None
+                        avail = get_available_slots(self.data.get("doctor", ""), self.data.get("date", ""))
+                        slots_str = ", ".join(avail) if avail else "no slots"
+                        hint = self._t(
+                            f"I am sorry, {time_fix} is already taken. Available: {slots_str}.",
+                            f"Kshama karein, {time_fix} pehle se book hai. Upalabdh: {slots_str}."
+                        )
+                        return self._gen("time correction: slot taken", hint)
+                    self.state = "CONFIRM"
+                    d = self.data
+                    print(f"  [correction] Time changed to {time_fix!r}")
+                    hint = self._t(
+                        f"Updated! Your appointment: {d['doctor']} on {d['date']} at {time_fix}. "
+                        f"Shall I confirm? Please say yes or no.",
+                        f"Theek hai! Appointment: {d['doctor']} ke saath {d['date']} ko {time_fix} baje. "
+                        f"Confirm karein? Haan ya nahi."
+                    )
+                    return self._gen(f"mid-flow time correction to {time_fix}", hint)
 
         # ── EMERGENCY / random urgent complaint ──────────────────────────
         # Instead of just warning, we offer to book with a General Physician
@@ -1115,23 +1321,47 @@ class HospitalAgent:
             )
             return self._gen("returning patient — intent unclear", hint)
 
-        # ── ASK_FIRST: ALWAYS fresh — profile lookup happens HERE ─────────
         # ── ASK_FIRST: collect first name ─────────────────────────────────
         # Flow:
-        #   clean single word  → accept, go to ASK_LAST (no spell confirmation needed)
-        #   spelled letters    → assemble, go to ASK_LAST
-        #   natural speech     → extract, go to ASK_LAST
+        #   clean single word  → accept, check profile, go to SPELL_FIRST for confirmation
+        #   spelled letters    → assemble, check profile
+        #   natural speech     → extract, check profile
         #   unclear            → ask to spell
         elif self.state == "ASK_FIRST":
-            # Just move to SPELL_FIRST unconditionally
-            self.state = "SPELL_FIRST"
-            hint = self._t(
-                "Thank you. Could you please spell your first name letter by letter? For example: A M I T.",
-                "Shukriya. Kripya apna pehla naam ek ek akshar karke spell karein. Jaise: A M I T."
-            )
-            return self._gen("asking to spell first name", hint)
+            # Try to extract the name from what the user actually said
+            spoken = parse_spelled_name(user_input)
+            if spoken and len(spoken.strip()) >= 2:
+                # Got a name — store it and ask to spell to confirm
+                self.data["first_name"] = spoken
+                self.state = "SPELL_FIRST"
+                hint = self._t(
+                    f"Thank you, {spoken}. Could you please spell your first name letter by letter? For example: A M I T.",
+                    f"Shukriya, {spoken}. Kripya apna pehla naam ek ek akshar karke spell karein. Jaise: A M I T."
+                )
+                return self._gen("got first name, asking to spell for confirmation", hint)
+            else:
+                # Could not parse a name — go straight to SPELL_FIRST
+                self.state = "SPELL_FIRST"
+                hint = self._t(
+                    "Could you please spell your first name letter by letter? For example: A M I T.",
+                    "Kripya apna pehla naam ek ek akshar karke spell karein. Jaise: A M I T."
+                )
+                return self._gen("asking to spell first name", hint)
 
         elif self.state == "SPELL_FIRST":
+            # Check if user is correcting their name mid-flow: "wait my name is Abhishek"
+            correction = self._check_name_correction(user_input)
+            if correction:
+                spoken = correction
+                self.data["first_name"] = spoken
+                # Reset last name / dob if user is starting over
+                self.data["last_name"] = None
+                hint = self._t(
+                    f"No problem. So your first name is {spoken}. Could you please spell it to confirm? For example: A M I T.",
+                    f"Theek hai. Toh aapka pehla naam {spoken} hai. Kripya confirm karne ke liye spell karein. Jaise: A M I T."
+                )
+                return self._gen(f"name correction received: {spoken}, re-asking spell", hint)
+
             name = parse_spelled_name(user_input)
             if not name or len(name.strip()) < 2:
                 hint = self._t(
@@ -1147,8 +1377,7 @@ class HospitalAgent:
                 stored_fn = (self._stored_profile_firstname or "").strip().lower()
                 spoken_fn = name.strip().lower()
                 if stored_fn and stored_fn == spoken_fn:
-                    # First name matches phone profile — ALWAYS verify DOB before welcoming back
-                    # Never skip DOB even if caller ID matches; protects against spoofing/shared phones
+                    # First name matches phone profile — verify DOB before welcoming back
                     self._tentative_profile = profiles.get_profile(self.data.get("phone", ""))
                     fn = name
                     self.state = "VERIFY_PROFILE_DOB"
@@ -1181,13 +1410,13 @@ class HospitalAgent:
                     self._tentative_profile = prof  # may be None if ambiguous
                     self.state              = "VERIFY_PROFILE_DOB"
                     hint = self._t(
-                        f"Hello, {name}! I have a profile with that name. "
-                        f"Could you please confirm your date of birth? "
-                        f"For example: 21 March 1990.",
-                        f"Namaste, {name} ji! Iss naam se ek profile milti hai. "
-                        f"Pehchaan ke liye apni janm tithi batayein. Jaise: 21 March 1990."
+                        f"Hello, {name}! I have your profile on file. "
+                        f"Could you please confirm your date of birth to verify? "
+                        f"For example: 20 April 2003.",
+                        f"Namaste, {name} ji! Aapki profile mil gayi. "
+                        f"Pehchaan ke liye apni janm tithi batayein. Jaise: 20 April 2003."
                     )
-                    return self._gen(f"found profile(s) by first name {name}, asking DOB to verify", hint)
+                    return self._gen(f"found profile by first name {name} — asking DOB to verify", hint)
 
             self.state = "ASK_LAST"
             hint = self._t(
@@ -1277,7 +1506,34 @@ class HospitalAgent:
             self.data["last_name"] = name
             fn = self.data.get("first_name", "")
 
-            # If new patient, collect DOB for profile creation
+            # ── Check appointments.csv for returning patients who aren't in profiles.json ──
+            # This catches patients like Riya Rathod who booked via admin or a prior system
+            # and therefore exist in appointments.csv but not profiles.json.
+            if self._new_patient and not self.data.get("dob"):
+                csv_matches = self._find_all_in_appointments(fn, name)
+                if csv_matches:
+                    # Found in CSV — ALWAYS verify DOB before granting returning-patient access.
+                    # This prevents confusion when two patients share the same first + last name.
+                    self._csv_matches = csv_matches  # store for VERIFY_CSV_DOB handler
+                    has_duplicate = len(csv_matches) > 1
+                    print(
+                        f"  [profile] Found {len(csv_matches)} record(s) for {fn} {name} in appointments.csv "
+                        f"— asking DOB to {'disambiguate' if has_duplicate else 'verify'}"
+                    )
+                    self.state = "VERIFY_CSV_DOB"
+                    hint = self._t(
+                        f"I found a record for {fn} {name}. "
+                        f"To confirm your identity, could you please tell me your date of birth? "
+                        f"For example: 21 March 1990.",
+                        f"{fn} {name} ji ki record mil gayi. "
+                        f"Pehchaan ke liye apni janm tithi batayein. Jaise: 21 March 1990."
+                    )
+                    return self._gen(
+                        f"found {fn} {name} in CSV ({'duplicate' if has_duplicate else 'single'}) — asking DOB to verify",
+                        hint
+                    )
+
+            # If still new patient (no CSV match either), collect DOB for profile creation
             # BUT skip if DOB was already captured during VERIFY_PROFILE_DOB mismatch
             if self._new_patient and not self.data.get("dob"):
                 self.state = "ASK_DOB"
@@ -1299,13 +1555,87 @@ class HospitalAgent:
                 )
                 return self._gen(f"got last name {name} (DOB already set), asking symptom", hint)
 
-            # Returning patient (verified by DOB earlier)
+            # Returning patient (verified by DOB earlier or by CSV match)
             self.state = "ASK_SYMPTOM"
             hint = self._t(
-                f"Thank you, {fn} {name}. What symptoms are you experiencing today?",
-                f"Shukriya, {fn} {name} ji. Aaj aapko kya takleef ho rahi hai?"
+                f"Welcome back, {fn} {name}! What symptoms are you experiencing today?",
+                f"Dobara milke khushi hui, {fn} {name} ji! Aaj aapko kya takleef ho rahi hai?"
             )
             return self._gen(f"confirmed full name {fn} {name}, asking for symptoms", hint)
+
+        # ── VERIFY_CSV_DOB ─────────────────────────────────────────────────
+        # Triggered after a name match in appointments.csv.
+        # We ALWAYS ask DOB here to:
+        #   (a) confirm identity for a single match, and
+        #   (b) disambiguate between two patients with the same name.
+        elif self.state == "VERIFY_CSV_DOB":
+            from patient_profiles import validate_dob
+            dob = validate_dob(user_input)
+            fn  = self.data.get("first_name", "")
+            ln  = self.data.get("last_name",  "")
+
+            if dob:
+                csv_matches = getattr(self, "_csv_matches", [])
+                if not csv_matches:
+                    # Safety fallback: re-fetch matches
+                    csv_matches = self._find_all_in_appointments(fn, ln)
+
+                # Try to find a row whose DOB matches what the patient just said
+                matched_row = None
+                from patient_profiles import validate_dob as _val_dob
+                for row in csv_matches:
+                    row_dob = (row.get("DOB", row.get("dob", "")) or "").strip()
+                    norm_row_dob = _val_dob(row_dob) if row_dob else None
+                    if norm_row_dob and norm_row_dob == dob:
+                        matched_row = row
+                        break
+
+                if matched_row:
+                    # ✅ DOB verified — treat as returning patient
+                    self._new_patient = False
+                    self.data["dob"]  = dob
+                    self._csv_matches = []
+                    print(f"  [profile] DOB verified for {fn} {ln} via CSV — returning patient")
+                    self.state = "ASK_SYMPTOM"
+                    hint = self._t(
+                        f"Welcome back, {fn} {ln}! Great to have you with us again. "
+                        f"What symptoms are you experiencing today?",
+                        f"Dobara milke khushi hui, {fn} {ln} ji! "
+                        f"Aaj aapko kya takleef ho rahi hai?"
+                    )
+                    return self._gen(f"CSV DOB verified for {fn} {ln} — returning patient, asking symptom", hint)
+
+                else:
+                    # ❌ DOB does NOT match any record for this name
+                    # → New patient; store this DOB and continue booking
+                    self._new_patient  = True
+                    self.data["dob"]   = dob
+                    self._csv_matches  = []
+                    print(
+                        f"  [profile] DOB mismatch for {fn} {ln} in CSV "
+                        f"— treating as new patient (DOB={dob})"
+                    )
+                    self.state = "ASK_SYMPTOM"
+                    hint = self._t(
+                        f"I could not match that date of birth with our records for {fn} {ln}. "
+                        f"No problem — I will create a new profile for you. "
+                        f"What symptoms are you experiencing today?",
+                        f"Kshama karein, {fn} {ln} ji ki record se woh janm tithi match nahi hui. "
+                        f"Hum aapki nayi profile banate hain. Aaj aapko kya takleef ho rahi hai?"
+                    )
+                    return self._gen(
+                        f"CSV DOB mismatch for {fn} {ln} — new patient (DOB stored), asking symptom",
+                        hint
+                    )
+
+            # DOB not understood — ask again
+            hint = self._t(
+                "I am sorry, I could not catch that date. "
+                "Please say your date of birth clearly — for example: 21 March 1990.",
+                "Kshama karein, woh date samajh nahi aayi. "
+                "Kripya apni janm tithi clearly bolein — jaise: 21 March 1990."
+            )
+            return self._gen("VERIFY_CSV_DOB: DOB not understood, asking again", hint)
 
         # ── ASK_DOB (new patient only) ────────────────────────────────────
         elif self.state == "ASK_DOB":
@@ -1347,10 +1677,7 @@ class HospitalAgent:
                 )
                 return self._gen(f"detected symptom '{symptom}' — offering doctor choice", hint)
 
-            # ── Any unrecognised input → General Physician ──────────────
-            # If the user described ANYTHING substantial (not just noise/confirmations)
-            # we route to GP rather than asking again. This ensures "I am bleeding",
-            # "something is wrong", "I feel dizzy", etc. all get help.
+            
             _pure_noise = {
                 "yes", "no", "okay", "ok", "hello", "hi",
                 "haan", "nahi", "na", "yeah", "nope",
@@ -1399,12 +1726,13 @@ class HospitalAgent:
 
         # ── ASK_DATE ──────────────────────────────────────────────────────
         elif self.state == "ASK_DATE":
+            # Intercept day-of-week: "actually make it Thursday"
+            date_fix = self._try_date_correction(user_input)
+            if date_fix:
+                user_input = date_fix  # let normal ASK_DATE flow handle it
             from datetime import datetime as _dt, timedelta as _td
 
-            # ── Reject bare random numbers / phone numbers ─────────────────
-            # If the raw input is purely digits (or digit-like) and has no
-            # recognisable month word, refuse it immediately before format_date
-            # mangles it into a plausible-looking string.
+            
             _raw = user_input.strip()
             _month_words = [
                 "january","february","march","april","may","june",
@@ -1413,8 +1741,7 @@ class HospitalAgent:
             ]
             _has_month = any(m in _raw.lower() for m in _month_words)
             _digit_only = re.sub(r"[^0-9/\-\s]", "", _raw).strip()
-            # If input is mostly digits and has no month name and is not a
-            # date-like slash/dash pattern (e.g. 24/04/2026), reject it.
+            
             _looks_like_date_pattern = bool(re.match(r"^\d{1,2}[/\-]\d{1,2}([/\-]\d{2,4})?$", _raw.strip()))
             _all_digits_no_sep = bool(re.match(r"^\d+$", _raw.strip()))
             if _all_digits_no_sep and not _has_month:
@@ -1493,6 +1820,10 @@ class HospitalAgent:
         # ── ASK_TIME ──────────────────────────────────────────────────────
         elif self.state == "ASK_TIME":
             avail_slots = get_available_slots(self.data.get("doctor", ""), self.data.get("date", ""))
+            # Intercept "make it at 10 am" / "actually 5 pm"
+            time_fix = self._try_time_correction(user_input)
+            if time_fix:
+                user_input = time_fix
             t = normalize_time(user_input)
             if not t:
                 if any(w in text for w in ["no", "nahi", "nope", "change",
@@ -1613,7 +1944,7 @@ class HospitalAgent:
             )
             return self._gen("unclear response at confirmation, asking yes or no", hint)
 
-        # ── CANCEL ────────────────────────────────────────────────────────
+        
         elif self.state == "CANCEL_FIRST":
             self.state = "CANCEL_SPELL_FIRST"
             hint = self._t(
@@ -1673,7 +2004,7 @@ class HospitalAgent:
             )
             return self._gen("appointment not found", hint)
 
-        # ── RESCHEDULE ────────────────────────────────────────────────────
+        
         elif self.state == "RESCHEDULE_FIRST":
             self.state = "RESCHEDULE_SPELL_FIRST"
             hint = self._t(
@@ -1871,7 +2202,7 @@ class HospitalAgent:
             )
             return self._gen("reschedule confirm: unclear yes/no", hint)
 
-        # ── FALLBACK ──────────────────────────────────────────────────────
+        
         hint = self._t(
             "How may I help you today? I can book, reschedule, or cancel an appointment.",
             "Main aapki kaise madad kar sakta hoon? Appointment book, reschedule ya cancel kar sakta hoon."
