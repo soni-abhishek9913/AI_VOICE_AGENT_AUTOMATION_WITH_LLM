@@ -169,6 +169,12 @@ State confusion	Controlled state machine
 Language switching	Dynamic language context
 
 
+
+#create your account in twilio and ngrok 
+replace the details with your account details
+
+
+
 🚀 Future Improvements
 Real database (PostgreSQL / MongoDB)
 WhatsApp integration
