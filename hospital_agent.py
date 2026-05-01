@@ -700,7 +700,7 @@ def send_sms_reschedule(to_number: str, data: dict, lang: str = "en"):
 
 def send_email(subject: str = "Appointments Update",
                body: str = "Updated appointments attached."):
-    EMAIL    = ""
+    EMAIL    = "" #your email and passcode
     PASSWORD = ""
     TO       = ""
     msg      = EmailMessage()
@@ -1745,6 +1745,24 @@ class HospitalAgent:
 
         # ── CHOOSE LANGUAGE ───────────────────────────────────────────────
         if self.state == "CHOOSE_LANG":
+            # Detect farewell / "no thank you" after end-of-booking reset
+            _FAREWELL_WORDS = [
+                "no thank", "no thanks", "that's all", "thats all",
+                "nothing else", "goodbye", "bye", "good bye",
+                "no more", "i'm done", "im done", "all good",
+                "nahi chahiye", "bas", "shukriya bas", "theek hai bas",
+                "dhanyawad", "alvida", "namaskar",
+            ]
+            if any(w in text for w in _FAREWELL_WORDS) or (
+                self._is_no(user_input) and len(text.split()) <= 4
+            ):
+                lang = self.lang or "en"
+                if lang == "hi":
+                    hint = "Shukriya. Anand Hospital mein call karne ka dhanyawad. Apna khayal rakhein. Alvida!"
+                else:
+                    hint = "Thank you for calling Anand Hospital. Have a great day. Goodbye!"
+                return self._gen("call ending — farewell after end of session", hint, max_tokens=10)
+
             if self.lang in ("en", "hi"):
                 self.state = "START"
             else:
