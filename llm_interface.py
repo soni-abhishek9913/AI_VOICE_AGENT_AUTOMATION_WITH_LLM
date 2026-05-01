@@ -174,6 +174,11 @@ def _apply_hindi_fixes(text: str) -> str:
 def _strip_trailing_partial_word(text: str) -> str:
     if not text:
         return text
+    # Preserve spelled-out letter sequences like 'A M I T' or 'R A H U L'
+    # at the end of the string — these are intentional, not partial words.
+    _SPELLED_SUFFIX = re.compile(r'(?:\b[A-Z]\b\s+){2,}\b[A-Z]\b\.?\s*$')
+    if _SPELLED_SUFFIX.search(text):
+        return text.strip()
     text = re.sub(r'\s+\w{1,4}\'\s*$', '', text).strip()
     text = re.sub(r'\'\s*$', '', text).strip()
     for _ in range(6):
@@ -464,6 +469,19 @@ _HINT_ONLY_TASKS = {
     'implicit booking intent',
     'stt noise detected',
     'multi-word stt with leading letter',
+    # spell-name tasks (all flows)
+    'asking to spell first name',
+    'asking to spell last name',
+    'first name spelling unclear, asking to spell',
+    'last name spelling not understood, asking to spell',
+    'name correction received',
+    'spelling of first name unclear',
+    'asking to spell first name for cancel',
+    'asking to spell last name for cancel',
+    'asking to spell first name for reschedule',
+    'asking to spell last name for reschedule',
+    'reschedule: first name spelling not clear',
+    'reschedule: last name spelling not clear',
 }
 
 
