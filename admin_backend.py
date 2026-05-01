@@ -12,7 +12,7 @@ CORS(app)
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE        = os.path.join(BASE_DIR, "appointments.csv")
 TRANSCRIPT_FILE = os.path.join(BASE_DIR, "transcripts.txt")
-#create your username and password
+
 ADMIN_USERNAME  = ""
 ADMIN_PASS_HASH = hashlib.sha256("".encode()).hexdigest()
 
@@ -557,7 +557,7 @@ def poll():
     active_sessions = 0
     import requests
     try:
-        r = requests.get("http://localhost:5000/api/active_sessions", timeout=1)
+        r = requests.get("http://localhost:/api/active_sessions", timeout=1)
         if r.status_code == 200:
             active_sessions = r.json().get("active_sessions", 0)
     except:
@@ -582,4 +582,4 @@ def serve_dashboard():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="", port=, debug=True)
