@@ -482,6 +482,9 @@ _HINT_ONLY_TASKS = {
     'asking to spell last name for reschedule',
     'reschedule: first name spelling not clear',
     'reschedule: last name spelling not clear',
+    # farewell
+    'call ending',
+    'farewell',
 }
 
 
