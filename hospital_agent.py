@@ -948,13 +948,39 @@ class HospitalAgent:
 
     # Patterns that signal a name correction mid-flow
     _NAME_CORRECTION_PATS = [
-        r"(?:wait|actually|hold on|no)[,\s]+(?:my name is|i am|i'm|naam hai)\s+([a-z]+)",
+        # Explicit correction with trigger word + name intro
+        r"(?:wait|actually|hold on|no|sorry|oops|excuse me)[,\s]+(?:my name is|i am|i'm|naam hai|mera naam)\s+([a-z]+)",
+        # "not X, I'm Y" / "not X my name is Y"
+        r"not\s+[a-z]+[,\s]+(?:my name is|i am|i'm|naam hai|mera naam|naam)\s+([a-z]+)",
+        # "sorry not X it's Y" / "no not X I'm Y"
+        r"(?:sorry|no)[,\s]+not\s+[a-z]+[,\s]+(?:it'?s|i am|i'm|my name is)\s+([a-z]+)",
+        # Natural "my name is X" or "I am X" anywhere in sentence
         r"(?:my name is|i am|i'm|naam hai|naam)\s+([a-z]+)\s*$",
-        r"(?:call me|it's|its)\s+([a-z]+)\s*$",
+        # "call me X" / "it's X" / "its X"
+        r"(?:call me|it'?s|its)\s+([a-z]+)\s*$",
+        # Hindi: "mera naam X hai" / "naam X hai"
+        r"mera naam\s+([a-z]+)\s*(?:hai)?",
+        r"naam\s+([a-z]+)\s+hai",
+        # Hindi interjections: "arre/are/aree/arrey mera naam X hai"
+        r"(?:arre|are|aree|arrey|ari|aho)[,\s]+(?:mera naam|naam|my name is|i am|i'm)\s+([a-z]+)",
+        r"(?:arre|are|aree|arrey|ari|aho)[,\s]+([a-z]{3,})\s*(?:hai|hoon|hun|huin)?\s*$",
+        # "actually X" / "actually it's X" as a standalone correction
+        r"actually[,\s]+(?:it'?s\s+)?([a-z]{3,})\s*$",
+        # "I said X" / "I meant X"
+        r"(?:i said|i meant|meant to say)\s+([a-z]+)",
+        # Hindi: "mera pehla naam X hai" / "mera first name X hai"
+        r"(?:mera|meri)\s+(?:pehla|pehli|first)\s+naam\s+([a-z]+)",
+        # "no no X" — common correction pattern in Hindi-English mix
+        r"^(?:no[\s,]+no|nahi[\s,]+nahi|nahi[\s,]+no)[,\s]+([a-z]{3,})\s*$",
     ]
 
     def _check_name_correction(self, text: str) -> str:
-        """Return corrected first name if user says 'wait my name is X' etc., else empty string."""
+        """
+        Return corrected first name if user says 'wait my name is X', 
+        'sorry not Amit I'm Abhishek', 'actually Rahul', 
+        'arre mera naam Amit hai', etc.
+        Returns empty string if no correction detected.
+        """
         t = text.lower().strip()
         import re as _re
         for pat in self._NAME_CORRECTION_PATS:
@@ -964,6 +990,178 @@ class HospitalAgent:
                 if _is_clean_name(candidate):
                     return candidate.title()
         return ""
+
+    def _check_intent_switch(self, text: str) -> str:
+        """
+        Detect if the user wants to switch their intent mid-conversation.
+        Returns: 'BOOK', 'CANCEL', 'RESCHEDULE', or '' if no switch detected.
+
+        Catches phrases like:
+          - "actually I want to cancel"
+          - "wait, I need to reschedule instead"
+          - "sorry, I don't want to book, I want to cancel"
+          - "hold on, let me reschedule"
+        """
+        t = text.lower().strip()
+
+        # Strong switch signals — must have a pivot/correction word to avoid false positives
+        _PIVOT_WORDS = [
+            "actually", "wait", "hold on", "sorry", "no wait",
+            "oops", "excuse me", "instead", "not book", "not booking",
+        ]
+        has_pivot = any(p in t for p in _PIVOT_WORDS)
+
+        if has_pivot:
+            if _is_cancel_phrase(t):
+                return "CANCEL"
+            if _is_reschedule_phrase(t):
+                return "RESCHEDULE"
+            if _is_booking_phrase(t):
+                return "BOOK"
+
+        # Also catch "I want to cancel/reschedule" without pivot — only when NOT in
+        # a matching flow already (caller checks state before calling this).
+        # e.g. during booking flow: "I want to cancel" is a clear switch
+        if _is_cancel_phrase(t) and "cancel" in t:
+            return "CANCEL"
+        if _is_reschedule_phrase(t) and any(w in t for w in ["reschedule", "change my appointment", "date badlo"]):
+            return "RESCHEDULE"
+
+        return ""
+
+    def _check_field_jump(self, text: str) -> dict:
+        """
+        Detect mid-conversation field corrections/jumps.
+        User can say things like:
+          - "actually change my DOB to 15 June 1995"
+          - "change my date of birth"
+          - "my symptoms are headache not fever"
+          - "change the doctor"
+          - "change the date to 10 May"
+          - "change the time to 9 AM"
+          - "change my last name"
+          - "change my first name"
+
+        Returns a dict:
+          { "field": <field_name>, "value": <new_value_or_None> }
+        where field is one of: "first_name", "last_name", "dob", "symptom",
+                                "doctor", "date", "time"
+        or {} if no jump detected.
+        """
+        import re as _re
+        t = text.lower().strip()
+
+        _PIVOT = [
+            "actually", "wait", "hold on", "sorry", "oops",
+            "change", "update", "fix", "correct", "wrong",
+            "not that", "instead", "badlo", "theek karo",
+            "change my", "change the", "i meant", "i said",
+            "edit", "go back", "no wait",
+        ]
+        has_pivot = any(p in t for p in _PIVOT)
+
+        # ── FIRST NAME ──────────────────────────────────────────────────────
+        if has_pivot and any(w in t for w in [
+            "first name", "pehla naam", "my name", "naam"
+        ]):
+            # Try to extract inline value: "change first name to Ravi"
+            m = _re.search(
+                r"(?:first name|pehla naam|my name|naam)\s+(?:to|ko|is|hai)?\s*([a-z]+)", t
+            )
+            val = m.group(1).title() if m and _is_clean_name(m.group(1)) else None
+            return {"field": "first_name", "value": val}
+
+        # ── LAST NAME ───────────────────────────────────────────────────────
+        if has_pivot and any(w in t for w in [
+            "last name", "surname", "aakhiri naam", "family name"
+        ]):
+            m = _re.search(
+                r"(?:last name|surname|aakhiri naam|family name)\s+(?:to|ko|is|hai)?\s*([a-z]+)", t
+            )
+            val = m.group(1).title() if m and _is_clean_name(m.group(1)) else None
+            return {"field": "last_name", "value": val}
+
+        # ── DATE OF BIRTH ────────────────────────────────────────────────────
+        _DOB_KEYWORDS = [
+            "date of birth", "dob", "birth date", "birth day", "birthday",
+            "janm tithi", "born on", "paida hua", "paida hui",
+            "my dob", "my birthday", "my birth",
+        ]
+        if any(w in t for w in _DOB_KEYWORDS):
+            from patient_profiles import validate_dob as _vdob
+            dob_val = _vdob(text)
+            return {"field": "dob", "value": dob_val}
+
+        # ── SYMPTOM ──────────────────────────────────────────────────────────
+        if has_pivot and any(w in t for w in [
+            "symptom", "problem", "issue", "complaint",
+            "takleef", "bimari", "dard", "pain",
+            "headache", "fever", "cough", "stomach", "skin",
+            "sar dard", "bukhar", "khansi", "pet", "khujli",
+        ]):
+            return {"field": "symptom", "value": None}
+
+        # Also catch plain symptom mention mid-flow with no doctor yet chosen:
+        # e.g. "actually I have a headache" — only if pivot present
+        if has_pivot:
+            for kw in SYMPTOM_MAP:
+                if kw in t:
+                    return {"field": "symptom", "value": None}
+
+        # ── DOCTOR ───────────────────────────────────────────────────────────
+        if has_pivot and any(w in t for w in [
+            "doctor", "dr", "physician", "doc",
+            "doosra doctor", "different doctor", "change doctor",
+        ]):
+            return {"field": "doctor", "value": None}
+
+        # ── DATE ─────────────────────────────────────────────────────────────
+        # Check for explicit numeric date patterns FIRST (e.g. 03/05/2026),
+        # before the time check can falsely match "am"/"pm" as substrings.
+        _explicit_date_re = _re.compile(
+            r"\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b"
+            r"|\b\d{1,2}\s+(?:january|february|march|april|may|june|july|august|"
+            r"september|october|november|december|jan|feb|mar|apr|jun|jul|aug|"
+            r"sep|oct|nov|dec)\s+\d{4}\b"
+        )
+        if has_pivot and _explicit_date_re.search(t) and not any(w in t for w in _DOB_KEYWORDS):
+            date_val = self._try_date_correction(text)
+            if not date_val:
+                fmt = format_date(text)
+                date_val = fmt if is_valid_date(fmt) else None
+            return {"field": "date", "value": date_val}
+
+        if has_pivot and not any(w in t for w in _DOB_KEYWORDS) and any(w in t for w in [
+            "date", "day", "tarikh", "din",
+            "monday", "tuesday", "wednesday", "thursday",
+            "friday", "saturday", "sunday",
+            "january", "february", "march", "april", "may",
+            "june", "july", "august", "september", "october",
+            "november", "december",
+        ]):
+            # Try to extract inline date
+            date_val = self._try_date_correction(text)
+            if not date_val:
+                fmt = format_date(text)
+                date_val = fmt if is_valid_date(fmt) else None
+            return {"field": "date", "value": date_val}
+
+        # ── TIME ─────────────────────────────────────────────────────────────
+        # Use word-boundary checks for "am"/"pm" so "came", "name", etc. don't
+        # accidentally trigger a time field-jump.
+        _am_pm_re = _re.compile(r"\b(?:am|pm)\b")
+        if has_pivot and (
+            any(w in t for w in [
+                "time", "slot", "samay", "baje", "timing",
+                "morning", "evening", "afternoon", "night",
+                "subah", "shaam", "dopahar", "raat",
+            ])
+            or _am_pm_re.search(t)
+        ):
+            time_val = self._try_time_correction(text)
+            return {"field": "time", "value": time_val or None}
+
+        return {}
 
     def _find_in_appointments(self, first_name: str, last_name: str) -> dict:
         """
@@ -995,16 +1193,27 @@ class HospitalAgent:
     def _try_date_correction(self, text: str) -> str:
         """
         Return a formatted date if user says 'actually make it Thursday' /
-        'change it to 25 April' / 'make it next Monday' etc.
+        'change it to 25 April' / 'make it next Monday' /
+        'oh sorry i want to came at 03/05/2026' etc.
         Returns empty string if no correction detected.
         """
         import re as _re
         t = text.lower().strip()
         # Trigger words that indicate a date/day change request
         _triggers = [
-            r"(?:actually|make it|change it to|change to|how about|let's do|let us do|"  
-            r"reschedule to|move to|shift to|book for)\s+(.+)",
+            r"(?:actually|make it|change it to|change to|how about|let's do|let us do|"
+            r"reschedule to|move to|shift to|book for|"
+            r"came at|come at|want to came at|want to come at|"
+            r"i want|i would like|sorry i want|oh sorry|"
+            r"date.*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s+\w+\s+\d{4}))\s*(.+)?",
             r"(?:thursday|friday|monday|tuesday|wednesday|saturday|sunday)",
+        ]
+        # More flexible trigger pattern that captures date after various phrases
+        _flexible_triggers = [
+            r"(?:actually|make it|change it to|change to|how about|let's do|let us do|"
+            r"reschedule to|move to|shift to|book for|"
+            r"came at|come at|want to came at|want to come at|"
+            r"i want|i would like|sorry|oh sorry)\s+(.+)",
         ]
         # Day-of-week → next occurrence mapping
         _DOW = {
@@ -1021,8 +1230,26 @@ class HospitalAgent:
                     days_ahead = 7  # next week if same day
                 target = today + _td(days=days_ahead)
                 return target.strftime("%d %B %Y")
-        # Check for explicit date after trigger word
-        for pat in _triggers[:1]:
+        # Check for explicit date after flexible trigger words
+        for pat in _flexible_triggers:
+            m = _re.search(pat, t)
+            if m:
+                candidate = m.group(1).strip()
+                try:
+                    fmt = format_date(candidate)
+                    if is_valid_date(fmt):
+                        return fmt
+                except Exception:
+                    pass
+        # Last resort: extract any date-like pattern directly from the text
+        # Matches DD/MM/YYYY, DD-MM-YYYY, or "D Month YYYY" anywhere in the input
+        _date_patterns = [
+            r"\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b",
+            r"\b(\d{1,2}\s+(?:january|february|march|april|may|june|july|august|"
+            r"september|october|november|december|jan|feb|mar|apr|jun|jul|aug|"
+            r"sep|oct|nov|dec)\s+\d{4})\b",
+        ]
+        for pat in _date_patterns:
             m = _re.search(pat, t)
             if m:
                 candidate = m.group(1).strip()
@@ -1068,22 +1295,343 @@ class HospitalAgent:
 
         # ── Universal mid-flow correction handler ─────────────────────────
         # Intercepts unexpected corrections at any state AFTER language is set
-        if self.state not in (
-            "CHOOSE_LANG", "START", "ASK_FIRST", "SPELL_FIRST",
+        _NAME_COLLECTABLE_STATES = (
+            "ASK_LAST", "SPELL_LAST", "ASK_DOB", "VERIFY_PROFILE_DOB",
+            "ASK_SYMPTOM", "SELECT_DOCTOR", "ASK_DATE", "ASK_TIME", "CONFIRM",
+            "GREET_RETURNING",
+            # Also allow name corrections inside cancel/reschedule name-collection states
             "CANCEL_FIRST", "CANCEL_SPELL_FIRST", "CANCEL_LAST", "CANCEL_SPELL_LAST",
             "RESCHEDULE_FIRST", "RESCHEDULE_SPELL_FIRST",
             "RESCHEDULE_LAST", "RESCHEDULE_SPELL_LAST",
-            "VERIFY_CSV_DOB", "VERIFY_PROFILE_DOB",
-        ) and self.lang:
-            # 1. Name correction: "wait my name is Abhishek"
-            name_fix = self._check_name_correction(user_input)
-            if name_fix and self.state in (
+            "RESCHEDULE_DATE", "RESCHEDULE_TIME", "RESCHEDULE_CONFIRM",
+        )
+
+        if self.state not in ("CHOOSE_LANG", "START", "ASK_FIRST", "SPELL_FIRST",
+                              "VERIFY_CSV_DOB") and self.lang:
+
+            # 0. Intent switch: "actually I want to cancel" / "hold on, reschedule instead"
+            # ──────────────────────────────────────────────────────────────────────────
+            _BOOKING_STATES = (
                 "ASK_LAST", "SPELL_LAST", "ASK_DOB", "VERIFY_PROFILE_DOB",
                 "ASK_SYMPTOM", "SELECT_DOCTOR", "ASK_DATE", "ASK_TIME", "CONFIRM",
                 "GREET_RETURNING",
-            ):
-                # Restart booking from first name
+            )
+            _CANCEL_STATES = (
+                "CANCEL_FIRST", "CANCEL_SPELL_FIRST", "CANCEL_LAST", "CANCEL_SPELL_LAST",
+            )
+            _RESCHEDULE_STATES = (
+                "RESCHEDULE_FIRST", "RESCHEDULE_SPELL_FIRST",
+                "RESCHEDULE_LAST", "RESCHEDULE_SPELL_LAST",
+                "RESCHEDULE_DATE", "RESCHEDULE_TIME", "RESCHEDULE_CONFIRM",
+            )
+
+            intent_switch = self._check_intent_switch(user_input)
+
+            # Switching TO cancel from booking or reschedule
+            if intent_switch == "CANCEL" and self.state not in _CANCEL_STATES:
                 old_state = self.state
+                # Preserve name if already collected for cancel lookup
+                fn = self.data.get("first_name") or ""
+                ln = self.data.get("last_name") or ""
+                self.data["doctor"] = None
+                self.data["date"]   = None
+                self.data["time"]   = None
+                self._reschedule_data = {}
+                print(f"  [intent-switch] {old_state} → CANCEL (fn={fn!r})")
+                if fn and ln:
+                    self.state = "CANCEL_LAST"   # name already known; go straight to lookup
+                    hint = self._t(
+                        f"No problem, {fn}! I will cancel your appointment right away.",
+                        f"Bilkul, {fn} ji! Main aapki appointment abhi cancel karta hoon."
+                    )
+                elif fn:
+                    self.state = "CANCEL_LAST"
+                    hint = self._t(
+                        f"Sure, {fn}. Could you confirm your last name so I can find your appointment?",
+                        f"Bilkul, {fn} ji. Appointment dhundhne ke liye apna aakhiri naam batayein."
+                    )
+                else:
+                    self.state = "CANCEL_FIRST"
+                    hint = self._t(
+                        "Of course. To cancel your appointment, may I have your first name please?",
+                        "Bilkul. Cancel ke liye apna pehla naam batayein."
+                    )
+                return self._gen(f"intent-switch to CANCEL from {old_state}", hint)
+
+            # Switching TO reschedule from booking or cancel
+            if intent_switch == "RESCHEDULE" and self.state not in _RESCHEDULE_STATES:
+                old_state = self.state
+                fn = self.data.get("first_name") or ""
+                ln = self.data.get("last_name") or ""
+                self.data["doctor"] = None
+                self.data["date"]   = None
+                self.data["time"]   = None
+                self._reschedule_data = {}
+                print(f"  [intent-switch] {old_state} → RESCHEDULE (fn={fn!r})")
+                if fn and ln:
+                    self.data["first_name"] = fn
+                    self.data["last_name"]  = ln
+                    self.state = "RESCHEDULE_DATE"
+                    hint = self._t(
+                        f"No problem, {fn}! What new date would you like for your appointment?",
+                        f"Bilkul, {fn} ji! Kaunsi nayi date chahiye aapko?"
+                    )
+                elif fn:
+                    self.state = "RESCHEDULE_LAST"
+                    hint = self._t(
+                        f"Sure, {fn}. Could you confirm your last name for the reschedule?",
+                        f"Bilkul, {fn} ji. Reschedule ke liye apna aakhiri naam batayein."
+                    )
+                else:
+                    self.state = "RESCHEDULE_FIRST"
+                    hint = self._t(
+                        "Of course. To reschedule, may I have your first name please?",
+                        "Bilkul. Reschedule ke liye apna pehla naam batayein."
+                    )
+                return self._gen(f"intent-switch to RESCHEDULE from {old_state}", hint)
+
+            # Switching TO booking from cancel or reschedule
+            if intent_switch == "BOOK" and self.state not in _BOOKING_STATES:
+                old_state = self.state
+                fn = self.data.get("first_name") or ""
+                self.data["doctor"] = None
+                self.data["date"]   = None
+                self.data["time"]   = None
+                self._reschedule_data = {}
+                print(f"  [intent-switch] {old_state} → BOOK (fn={fn!r})")
+                if fn:
+                    self.state = "ASK_SYMPTOM"
+                    hint = self._t(
+                        f"Of course, {fn}! What symptoms are you experiencing today?",
+                        f"Bilkul, {fn} ji! Aaj aapko kya takleef ho rahi hai?"
+                    )
+                else:
+                    self.state = "ASK_FIRST"
+                    hint = self._t(
+                        "Of course! What is your first name please?",
+                        "Bilkul! Apna pehla naam batayein."
+                    )
+                return self._gen(f"intent-switch to BOOK from {old_state}", hint)
+
+            # 1b. Field jump: "change my DOB", "change the date to 10 May", etc.
+            # ──────────────────────────────────────────────────────────────────────────
+            # Only fire when we are past the identity-collection states (we have a name)
+            # and the user isn't simply answering the current question normally.
+            _PAST_IDENTITY = self.state in (
+                "ASK_SYMPTOM", "SELECT_DOCTOR", "ASK_DATE", "ASK_TIME",
+                "CONFIRM", "GREET_RETURNING",
+                "ASK_DOB",                  # allow DOB change while collecting DOB
+                "ASK_LAST", "SPELL_LAST",   # allow DOB/symptom jump even from name states
+            )
+            if _PAST_IDENTITY and self.data.get("first_name"):
+                jump = self._check_field_jump(user_input)
+                field = jump.get("field")
+                val   = jump.get("value")
+
+                if field == "dob":
+                    # ── DOB change ──────────────────────────────────────────
+                    if val:
+                        self.data["dob"] = val
+                        fn = self.data.get("first_name", "")
+                        print(f"  [field-jump] DOB updated to {val!r}")
+                        # Stay in current state — just confirm the update and re-ask
+                        hint = self._t(
+                            f"Got it, {fn}. I have updated your date of birth to {val}. "
+                            + (
+                                "Now, what symptoms are you experiencing today?"
+                                if self.state in ("ASK_DOB",)
+                                else "Let's continue — " + self.get_repeat_prompt()
+                            ),
+                            f"Theek hai, {fn} ji. Aapki janm tithi {val} ho gayi. "
+                            + (
+                                "Aaj aapko kya takleef ho rahi hai?"
+                                if self.state in ("ASK_DOB",)
+                                else "Chalte hain — " + self.get_repeat_prompt()
+                            ),
+                        )
+                        if self.state == "ASK_DOB":
+                            self.state = "ASK_SYMPTOM"
+                        return self._gen(f"field-jump: DOB updated to {val}", hint)
+                    else:
+                        # DOB mention but no parseable value → ask for it
+                        self.state = "ASK_DOB"
+                        fn = self.data.get("first_name", "")
+                        print(f"  [field-jump] DOB change requested — asking")
+                        hint = self._t(
+                            f"Of course, {fn}. Please say your correct date of birth. "
+                            f"For example: 21 March 1990.",
+                            f"Bilkul, {fn} ji. Apni sahi janm tithi batayein. Jaise: 21 March 1990."
+                        )
+                        return self._gen("field-jump: DOB change requested", hint)
+
+                elif field == "first_name":
+                    if val:
+                        old = self.data.get("first_name", "")
+                        self.data["first_name"] = val
+                        self.data["last_name"]  = None
+                        self.data["dob"]        = None
+                        self.data["doctor"]     = None
+                        self.data["date"]       = None
+                        self.data["time"]       = None
+                        self._profile_loaded    = False
+                        self._new_patient       = True
+                        self.state = "SPELL_FIRST"
+                        print(f"  [field-jump] First name changed: {old!r} → {val!r}")
+                        hint = self._t(
+                            f"No problem! I have updated your first name to {val}. "
+                            f"Could you spell {val} letter by letter to confirm?",
+                            f"Theek hai! Aapka pehla naam {val} ho gaya. "
+                            f"Kripya {val} ko ek ek akshar mein spell karein."
+                        )
+                    else:
+                        self.state = "ASK_FIRST"
+                        print(f"  [field-jump] First name change requested — re-asking")
+                        hint = self._t(
+                            "Of course! What is your correct first name?",
+                            "Bilkul! Apna sahi pehla naam batayein."
+                        )
+                    return self._gen("field-jump: first name change", hint)
+
+                elif field == "last_name":
+                    if val:
+                        old = self.data.get("last_name", "")
+                        self.data["last_name"] = val
+                        print(f"  [field-jump] Last name changed: {old!r} → {val!r}")
+                        fn = self.data.get("first_name", "")
+                        # If we're still in name-collection, advance; else stay put
+                        if self.state in ("ASK_LAST", "SPELL_LAST"):
+                            self.state = "ASK_SYMPTOM"
+                        hint = self._t(
+                            f"Got it! Last name updated to {val}. "
+                            + ("What symptoms are you experiencing today?"
+                               if self.state == "ASK_SYMPTOM"
+                               else self.get_repeat_prompt()),
+                            f"Theek hai! Aakhiri naam {val} ho gaya. "
+                            + ("Aaj aapko kya takleef ho rahi hai?"
+                               if self.state == "ASK_SYMPTOM"
+                               else self.get_repeat_prompt()),
+                        )
+                    else:
+                        self.state = "ASK_LAST"
+                        print(f"  [field-jump] Last name change requested — re-asking")
+                        hint = self._t(
+                            "Of course! What is your correct last name?",
+                            "Bilkul! Apna sahi aakhiri naam batayein."
+                        )
+                    return self._gen("field-jump: last name change", hint)
+
+                elif field == "symptom":
+                    old_doc  = self.data.get("doctor")
+                    self.data["doctor"] = None
+                    self.data["date"]   = None
+                    self.data["time"]   = None
+                    self.state = "ASK_SYMPTOM"
+                    fn = self.data.get("first_name", "")
+                    print(f"  [field-jump] Symptom change requested (was: doctor={old_doc!r})")
+                    hint = self._t(
+                        f"No problem, {fn}! Let me update that. "
+                        f"What symptoms are you experiencing today?",
+                        f"Bilkul, {fn} ji! Batayein — aaj aapko kya takleef ho rahi hai?"
+                    )
+                    return self._gen("field-jump: symptom change", hint)
+
+                elif field == "doctor":
+                    self.data["doctor"] = None
+                    self.data["date"]   = None
+                    self.data["time"]   = None
+                    self.state = "ASK_SYMPTOM"
+                    fn = self.data.get("first_name", "")
+                    print(f"  [field-jump] Doctor change requested")
+                    hint = self._t(
+                        f"Of course, {fn}! Let me help you choose a different doctor. "
+                        f"What symptoms are you experiencing?",
+                        f"Bilkul, {fn} ji! Doosra doctor chunne ke liye — "
+                        f"aapko kya takleef ho rahi hai?"
+                    )
+                    return self._gen("field-jump: doctor change", hint)
+
+                elif field == "date":
+                    self.data["time"] = None
+                    if val and not is_past_date(val):
+                        self.data["date"] = val
+                        self.state = "ASK_TIME"
+                        avail = get_available_slots(self.data.get("doctor", ""), val)
+                        slots_str = ", ".join(avail) if avail else "no slots available"
+                        fn = self.data.get("first_name", "")
+                        print(f"  [field-jump] Date changed to {val!r}")
+                        hint = self._t(
+                            f"Done, {fn}! Date updated to {val}. "
+                            f"Please choose a time. Available slots: {slots_str}.",
+                            f"Theek hai, {fn} ji! Tarikh {val} ho gayi. "
+                            f"Kaunsa samay chahiye? Slots: {slots_str}."
+                        )
+                    else:
+                        self.data["date"] = None
+                        self.state = "ASK_DATE"
+                        fn = self.data.get("first_name", "")
+                        print(f"  [field-jump] Date change requested — re-asking")
+                        hint = self._t(
+                            f"Of course, {fn}! What new date would you like?",
+                            f"Bilkul, {fn} ji! Kaunsi nayi date chahiye?"
+                        )
+                    return self._gen("field-jump: date change", hint)
+
+                elif field == "time":
+                    if val and val in AVAILABLE_SLOTS:
+                        self.data["time"] = val
+                        avail = get_available_slots(
+                            self.data.get("doctor", ""), self.data.get("date", "")
+                        )
+                        if val not in avail:
+                            slots_str = ", ".join(avail) if avail else "no slots"
+                            fn = self.data.get("first_name", "")
+                            hint = self._t(
+                                f"I am sorry, {val} is already booked. "
+                                f"Available times: {slots_str}. Which would you prefer?",
+                                f"Kshama karein, {val} ka slot book hai. "
+                                f"Upalabdh slots: {slots_str}. Kaunsa chahiye?"
+                            )
+                            self.data["time"] = None
+                            self.state = "ASK_TIME"
+                            return self._gen("field-jump: time slot already booked", hint)
+                        self.state = "CONFIRM"
+                        d = self.data
+                        fn = d.get("first_name", "")
+                        print(f"  [field-jump] Time changed to {val!r}")
+                        hint = self._t(
+                            f"Done, {fn}! Time updated to {val}. "
+                            f"To confirm: {d['doctor']} on {d['date']} at {val}. "
+                            f"Shall I go ahead? Yes or no.",
+                            f"Theek hai, {fn} ji! Samay {val} ho gaya. "
+                            f"Confirm karein: {d['doctor']} ke saath {d['date']} ko {val} baje. "
+                            f"Haan ya nahi?"
+                        )
+                    else:
+                        self.data["time"] = None
+                        self.state = "ASK_TIME"
+                        fn = self.data.get("first_name", "")
+                        avail = get_available_slots(
+                            self.data.get("doctor", ""), self.data.get("date", "")
+                        )
+                        slots_str = ", ".join(avail) if avail else "no slots available"
+                        print(f"  [field-jump] Time change requested — re-asking")
+                        hint = self._t(
+                            f"Of course, {fn}! Available times: {slots_str}. Which do you prefer?",
+                            f"Bilkul, {fn} ji! Upalabdh slots: {slots_str}. Kaunsa samay chahiye?"
+                        )
+                    return self._gen("field-jump: time change", hint)
+
+            # 1. Name correction: "wait my name is Abhishek" / "sorry not Amit I'm Abhishek"
+            # ──────────────────────────────────────────────────────────────────────────
+            name_fix = self._check_name_correction(user_input)
+            if name_fix and self.state in _NAME_COLLECTABLE_STATES:
+                old_state = self.state
+
+                # Determine which flow we are in so we restart in the right place
+                in_cancel      = old_state in _CANCEL_STATES
+                in_reschedule  = old_state in _RESCHEDULE_STATES
+
+                # Reset collected data
                 self.data["first_name"] = name_fix
                 self.data["last_name"]  = None
                 self.data["dob"]        = None
@@ -1092,12 +1640,32 @@ class HospitalAgent:
                 self.data["time"]       = None
                 self._profile_loaded    = False
                 self._new_patient       = True
-                self.state = "SPELL_FIRST"
+                self._reschedule_data   = {}
+
                 print(f"  [correction] Name corrected to {name_fix!r} from state={old_state}")
-                hint = self._t(
-                    f"No problem! Let me update that. Could you spell {name_fix} letter by letter to confirm?",
-                    f"Bilkul! {name_fix} — kripya ek ek akshar mein spell karein confirm karne ke liye."
-                )
+
+                if in_cancel:
+                    self.state = "CANCEL_SPELL_FIRST"
+                    hint = self._t(
+                        f"No problem! So your name is {name_fix}. "
+                        f"Could you spell {name_fix} letter by letter to confirm?",
+                        f"Theek hai! Aapka naam {name_fix} hai. "
+                        f"Kripya {name_fix} ko ek ek akshar mein spell karein."
+                    )
+                elif in_reschedule:
+                    self.state = "RESCHEDULE_SPELL_FIRST"
+                    hint = self._t(
+                        f"No problem! So your name is {name_fix}. "
+                        f"Could you spell {name_fix} letter by letter to confirm?",
+                        f"Theek hai! Aapka naam {name_fix} hai. "
+                        f"Kripya {name_fix} ko ek ek akshar mein spell karein."
+                    )
+                else:
+                    self.state = "SPELL_FIRST"
+                    hint = self._t(
+                        f"No problem! Let me update that. Could you spell {name_fix} letter by letter to confirm?",
+                        f"Bilkul! {name_fix} — kripya ek ek akshar mein spell karein confirm karne ke liye."
+                    )
                 return self._gen(f"mid-flow name correction to {name_fix}", hint)
 
             # 2. Date correction: "actually make it Thursday" / "change to 25 April"
@@ -1430,6 +1998,58 @@ class HospitalAgent:
             from patient_profiles import validate_dob
             dob = validate_dob(user_input)
             fn  = self.data.get("first_name", "")
+
+            # ── Detect if user is giving a name instead of a DOB ─────────────
+            # This fires when the input has NO digits and NO month words —
+            # meaning it cannot possibly be a date. Treat it as a name correction.
+            _has_digit = any(ch.isdigit() for ch in user_input)
+            _month_words_vp = [
+                "january","february","march","april","may","june",
+                "july","august","september","october","november","december",
+                "jan","feb","mar","apr","jun","jul","aug","sep","oct","nov","dec",
+            ]
+            _has_month = any(m in user_input.lower() for m in _month_words_vp)
+
+            if not _has_digit and not _has_month:
+                # Pure alpha input while expecting a date → likely a name
+                # Try to extract a name from it
+                candidate = parse_spelled_name(user_input)
+                # Also accept a single clean word (STT often gives just the name)
+                if not candidate:
+                    stripped = user_input.strip().rstrip(".,!? ")
+                    if stripped.isalpha() and len(stripped) >= 2 and _is_clean_name(stripped):
+                        candidate = stripped.title()
+
+                if candidate:
+                    # User said a name — treat as first-name correction, restart from SPELL_FIRST
+                    old_fn = fn
+                    self.data["first_name"] = candidate
+                    self.data["last_name"]  = None
+                    self.data["dob"]        = None
+                    self._profile_loaded    = False
+                    self._new_patient       = True
+                    self._tentative_profile = None
+                    self.state = "SPELL_FIRST"
+                    print(f"  [name-in-dob] VERIFY_PROFILE_DOB: got name {candidate!r} instead of DOB (was {old_fn!r})")
+                    hint = self._t(
+                        f"No problem! Let me update your first name to {candidate}. "
+                        f"Could you spell {candidate} letter by letter to confirm? For example: A M I T.",
+                        f"Theek hai! Aapka pehla naam {candidate} kar deta hoon. "
+                        f"Kripya {candidate} ko ek ek akshar mein spell karein. Jaise: A M I T."
+                    )
+                    return self._gen(f"name given in DOB state — correcting to {candidate}", hint)
+                else:
+                    # Unrecognisable — could be noise. Ask clearly with both options.
+                    hint = self._t(
+                        f"I am sorry, I did not catch that. "
+                        f"If you want to confirm your date of birth, please say it clearly — for example: 21 March 1990. "
+                        f"Or if your name is different, please say your correct first name.",
+                        f"Kshama karein, samajh nahi aaya. "
+                        f"Agar janm tithi confirm karni hai toh clearly bolein — jaise: 21 March 1990. "
+                        f"Ya agar naam alag hai toh apna sahi pehla naam batayein."
+                    )
+                    return self._gen("VERIFY_PROFILE_DOB: non-date non-name input — asking to clarify", hint)
+
             if dob:
                 prof = self.load_profile_by_dob(fn, dob)
                 if prof:
@@ -1487,6 +2107,26 @@ class HospitalAgent:
         # ── ASK_LAST ──────────────────────────────────────────────────────
         # Same logic as ASK_FIRST: accept clean word directly, no redundant spelling step
         elif self.state == "ASK_LAST":
+            # ── First-name correction guard (same as SPELL_LAST) ──────────────
+            fn_correction_al = self._check_name_correction(user_input)
+            if fn_correction_al:
+                old_fn = self.data.get("first_name", "")
+                self.data["first_name"] = fn_correction_al
+                self.data["last_name"]  = None
+                self.data["dob"]        = None
+                self._profile_loaded    = False
+                self._new_patient       = True
+                self._tentative_profile = None
+                self.state = "SPELL_FIRST"
+                print(f"  [last-name-correction] First name corrected {old_fn!r} → {fn_correction_al!r} (from ASK_LAST)")
+                hint = self._t(
+                    f"No problem! Let me update your first name to {fn_correction_al}. "
+                    f"Could you spell {fn_correction_al} letter by letter to confirm? For example: A M I T.",
+                    f"Theek hai! Aapka pehla naam {fn_correction_al} kar deta hoon. "
+                    f"Kripya {fn_correction_al} ko ek ek akshar mein spell karein. Jaise: A M I T."
+                )
+                return self._gen(f"first-name correction in ASK_LAST → {fn_correction_al}", hint)
+
             self.state = "SPELL_LAST"
             hint = self._t(
                 "Thank you. Could you please spell your last name letter by letter? For example: S H A H.",
@@ -1495,7 +2135,48 @@ class HospitalAgent:
             return self._gen("asking to spell last name", hint)
 
         elif self.state == "SPELL_LAST":
+            # ── First-name correction guard ───────────────────────────────────
+            # Fires BEFORE accepting anything as a last name.
+            # Catches: "arre mera naam Amit hai", "my name is Rahul", plain "Amit"
+            # when the agent already has a different first name stored.
+            fn_stored = (self.data.get("first_name") or "").strip().lower()
+
+            # 1. Explicit correction phrase (patterns cover Hindi interjections too)
+            fn_correction = self._check_name_correction(user_input)
+            if fn_correction:
+                old_fn = self.data.get("first_name", "")
+                self.data["first_name"] = fn_correction
+                self.data["last_name"]  = None
+                self.data["dob"]        = None
+                self._profile_loaded    = False
+                self._new_patient       = True
+                self._tentative_profile = None
+                self.state = "SPELL_FIRST"
+                print(f"  [last-name-correction] First name corrected {old_fn!r} → {fn_correction!r} (from SPELL_LAST)")
+                hint = self._t(
+                    f"No problem! Let me update your first name to {fn_correction}. "
+                    f"Could you spell {fn_correction} letter by letter to confirm? For example: A M I T.",
+                    f"Theek hai! Aapka pehla naam {fn_correction} kar deta hoon. "
+                    f"Kripya {fn_correction} ko ek ek akshar mein spell karein. Jaise: A M I T."
+                )
+                return self._gen(f"first-name correction in SPELL_LAST → {fn_correction}", hint)
+
             name = parse_spelled_name(user_input)
+
+            # 2. If the extracted name is identical to the already-stored first name,
+            #    it almost certainly means the user repeated their first name —
+            #    ask them to confirm whether they meant it as first name or last name.
+            if name and name.strip().lower() == fn_stored:
+                # They repeated their first name — gently clarify
+                hint = self._t(
+                    f"Just to confirm — {name} is your first name. "
+                    f"Could you tell me your last name please? Or did you mean to correct your first name?",
+                    f"Ek baar confirm karein — {name} aapka pehla naam hai. "
+                    f"Kripya apna aakhiri naam batayein. Ya kya aap pehla naam badalna chahte hain?"
+                )
+                print(f"  [last-name-dupe] User repeated first name {name!r} in SPELL_LAST — asking to clarify")
+                return self._gen(f"user repeated first name {name!r} in last-name state", hint)
+
             if not name or len(name.strip()) < 2:
                 hint = self._t(
                     "I did not catch your last name. Please spell it letter by letter. For example: S H A H.",
@@ -1653,6 +2334,48 @@ class HospitalAgent:
                     f"Aaj aapko kya takleef ho rahi hai?"
                 )
                 return self._gen(f"DOB {dob} confirmed, asking symptom", hint)
+
+            # ── Detect name given instead of DOB (same guard as VERIFY_PROFILE_DOB) ──
+            _has_digit_d = any(ch.isdigit() for ch in user_input)
+            _month_words_d = [
+                "january","february","march","april","may","june",
+                "july","august","september","october","november","december",
+                "jan","feb","mar","apr","jun","jul","aug","sep","oct","nov","dec",
+            ]
+            _has_month_d = any(m in user_input.lower() for m in _month_words_d)
+            if not _has_digit_d and not _has_month_d:
+                candidate = parse_spelled_name(user_input)
+                if not candidate:
+                    stripped = user_input.strip().rstrip(".,!? ")
+                    if stripped.isalpha() and len(stripped) >= 2 and _is_clean_name(stripped):
+                        candidate = stripped.title()
+                if candidate:
+                    old_fn = self.data.get("first_name", "")
+                    self.data["first_name"] = candidate
+                    self.data["last_name"]  = None
+                    self.data["dob"]        = None
+                    self._profile_loaded    = False
+                    self._new_patient       = True
+                    self.state = "SPELL_FIRST"
+                    print(f"  [name-in-dob] ASK_DOB: got name {candidate!r} instead of DOB (was {old_fn!r})")
+                    hint = self._t(
+                        f"No problem! Let me update your first name to {candidate}. "
+                        f"Could you spell {candidate} letter by letter to confirm? For example: A M I T.",
+                        f"Theek hai! Aapka pehla naam {candidate} kar deta hoon. "
+                        f"Kripya {candidate} ko ek ek akshar mein spell karein. Jaise: A M I T."
+                    )
+                    return self._gen(f"name given in ASK_DOB state — correcting to {candidate}", hint)
+                else:
+                    hint = self._t(
+                        f"I am sorry, I did not catch that. "
+                        f"Please say your date of birth clearly — for example: 21 March 1990. "
+                        f"Or if your name is different, please say your correct first name.",
+                        f"Kshama karein, samajh nahi aaya. "
+                        f"Janm tithi clearly bolein — jaise: 21 March 1990. "
+                        f"Ya agar naam alag hai toh apna sahi pehla naam batayein."
+                    )
+                    return self._gen("ASK_DOB: non-date non-name input — asking to clarify", hint)
+
             hint = self._t(
                 "I am sorry, I could not catch that. Please say your date of birth "
                 "like this: 21 March 1990. Or say the day, month, and year clearly.",
