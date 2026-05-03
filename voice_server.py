@@ -279,9 +279,13 @@ def voice():
 
     opening_en = (
         "Hello, welcome to Anand Hospital. This is ADAM. "
+        "I can  assist you with booking, rescheduling, or cancelling doctor appointments, "
         "Would you prefer to speak in English or Hindi?"
+        
     )
-    opening_hi = "Kripya English ya Hindi chunein."
+    opening_hi = "Main aapki madad kar sakta hoon doctor appointment book karne, badalne, ya cancel karne mein.Kripya English ya Hindi chunein."
+    
+
 
     _log(call_sid, "ADAM", opening_en + " " + opening_hi)
     print(f"ADAM : {opening_en} {opening_hi}")
@@ -289,12 +293,14 @@ def voice():
     resp   = VoiceResponse()
     gather = Gather(
         input         = "speech dtmf",
-        timeout       = 8,
+        timeout       = 5,
         action        = f"/choose_language?call_sid={call_sid}",
         method        = "POST",
         speechModel   = "phone_call",
+        enhanced      = True,
         hints         = HINTS_LANG,
         bargeIn       = True,
+        profanityFilter = False,
         numDigits     = 1,
         speechTimeout = "auto",
     )
